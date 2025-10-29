@@ -1,83 +1,166 @@
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Random;
 
 /**
- * Diese Klasse dient als Simulation des Wildbienenwachstums über
+ * Diese Klasse dient als Simulation des Bienenwachstums über
  * eine gewisse Anzahl an übergebenen Jahren. Logs können über Parameter aktiviert werden,
  * um den Wachstum täglich oder/und jährlich zu verfolgen
  *
  */
 public class Simulation {
     private final int totalYears;
-    private final BeePopulation beePopulation;
-    private final List<Plantpopulation> plantPopulations;
-    private final Weather weather;
+    private final List<IPlantPopulation> plantPopulations;
+    private final IWeather weather;
+    private final List<NestingSite> nestingSites;
 
-    // Für detallierte Ausgabe
+    private final double maxX;
+    private final double maxY;
+
+    // Eine Liste aller Events, die in dieser Simulation auftreten könnten
+    private final List<IPopulationEvent> possiblePlantEvents;
+    // Eine Variable mit der einzigen Bee Event was es gibt
+    private final IBeeEvent possibleBeeEvent;
+
+    // Ein separater Random-Generator nur für das Auslösen von Events
+    private final IDistribution eventRandom;
+
+    // Die tägliche Wahrscheinlichkeit, dass irgendein Event ausgelöst wird.
+    private static final double DAILY_EVENT_PROBABILITY = 0.01;
+
+    // Für detaillierte Ausgabe
     private final StringBuilder yearlyLog = new StringBuilder();
     private final StringBuilder dailyLog = new StringBuilder();
 
     /**
-     @param totalYears Anzahl an Jahre zum Simulieren
-     @param initialBeePopulation Anfangspopulation von Wildbienen
-     @param plantPopulations eine Liste von Plantspecies um eine Population zu erstellen
+     *  STYLE: Objektorientiert (Kapselung). Der Konstruktor nimmt
+     *  Abhängigkeiten entgegen und speichert sie in 'private' Feldern.
+     *  Von außen ist der Zustand der Simulation (z.B. die Liste der
+     *  Populationen) nicht mehr direkt manipulierbar, sondern nur
+     *  über die Methoden des 'Simulation'-Objekts (z.B. 'run()')
+     *
+     * @param totalYears Anzahl an Jahre zum Simulieren
+     * @param plantPopulations eine Liste von Plantspecies um eine Population zu erstellen
      */
     public Simulation(int totalYears,
-                      double initialBeePopulation,
-                      List<Plantspecies> plantPopulations,
-                      Random random,
-                      double vigor) {
+                      List<NestingSite> nestingSites,
+                      List<IPlantPopulation> plantPopulations,
+                      IWeather weather,
+                      GaussianDistribution gaussianDistribution,
+                      double maxX,
+                      double maxY,
+                      List<IPopulationEvent> possibleEvents,
+                      IBeeEvent possibleBeeEvent) {
         this.totalYears = totalYears;
-        this.beePopulation = new BeePopulation(initialBeePopulation, random);
-        this.plantPopulations = new ArrayList<>();
-        for(Plantspecies plantspecies : plantPopulations){
-            this.plantPopulations.add(new Plantpopulation(plantspecies, vigor, random));
-        }
-        this.weather = new Weather(random);
+        this.nestingSites = nestingSites;
+        this.plantPopulations = plantPopulations;
+        this.maxX = maxX;
+        this.maxY = maxY;
+        this.weather = weather;
+        this.eventRandom = gaussianDistribution;
+        this.possiblePlantEvents = (possibleEvents != null) ? possibleEvents : new ArrayList<>();
+        this.possibleBeeEvent = possibleBeeEvent;
+
+        //testet, ob die Nistplätze und die Pflanzen innerhalb des definierten Felds liegen
+        testCoordinates(nestingSites, plantPopulations);
     }
 
     /**
-    Startet die Simulation für totalYears
-    @param dailyLogging Log für jeden Tag der Simuliert wird
-    @param yearlyLogging Log für jedes Jahr was simuliert wird
+     * Startet die Simulation für totalYears
+     *
+     * @param dailyLogging  Log für jeden Tag der Simuliert wird
+     * @param yearlyLogging Log für jedes Jahr was simuliert wird
      */
-    public void run(boolean dailyLogging, boolean yearlyLogging){
-        for(int year = 1; year <= totalYears; year++){
+    public void run(boolean dailyLogging, boolean yearlyLogging) {
+        for (int year = 1; year <= totalYears; year++) {
             runVegetationPeriod(dailyLogging, year);
             runRestPhase();
-            if(yearlyLogging) logYearlyState(year);
+            if (yearlyLogging) logYearlyState(year);
         }
     }
 
     /**
-    Simuliert die 240 Tage der Vegatationsperiode
-    @param dailyLogging Log für jeden Tag der Simuliert wird
-    @param currentYear Int vom aktuellen Jahr für Log
+     * Simuliert die 240 Tage der Vegatationsperiode
+     * Zuerst wird das Nahrungsangebot ausgerechnet
+     * Dann die Bienenpopulation pro Nistplatz
+     * Dann wird überprüft ob ein Event passieren könnte, bei dem die Population veringert wird
+     * Dann Mach ein tägliches Update der Pflanzenpopulation
+     * @param dailyLogging Log für jeden Tag der Simuliert wird
+     * @param currentYear Int vom aktuellen Jahr für Log
      */
     private void runVegetationPeriod(boolean dailyLogging, int currentYear) {
-        for(Plantpopulation p : plantPopulations){
+        for(IPlantPopulation p : plantPopulations){
             p.resetForNewVegetationPeriod();
         }
         weather.initializeForVegetationPeriod();
 
         int vegetationDays = 240; // März bis Oktober
-        for(int day = 1; day <= vegetationDays; day++){
-            weather.simulateDailyChange();
+        for (int day = 1; day <= vegetationDays; day++) {
+            weather.simulateDailyChange(day);
 
-            //Nahrungsangebot ausrechnen summe(yi * bi)
+
+            //Nahrungsangebot berechnen
             double totalFoodSupply = 0.0;
-            for(Plantpopulation p : plantPopulations){
+            for(IPlantPopulation p : plantPopulations){
                 totalFoodSupply += p.getCurrentFoodSupply();
             }
 
-            //Population updaten
-            beePopulation.updateDaily(totalFoodSupply);
-            for(Plantpopulation p : plantPopulations){
-                p.updateDaily(weather, beePopulation.getPopulation(), totalFoodSupply);
+            //Bienenpopulation pro Nistplatz
+            double totalBeePopulation = 0.0;
+            for (NestingSite nest : nestingSites) {
+                IBeePopulation bees = nest.getBeePopulation();
+
+                //Erreichbares Futter für dieses Nest berechnen
+                double foodInRange = 0.0;
+                for (IPlantPopulation plant : plantPopulations) {
+                    double dist = nest.getCoordinates().distanceTo(plant.getCoordinates());
+
+                    if (dist <= bees.getMaxRange()) {
+                        // Effizienz: abhängig von der Entfernung zum Nistplatz
+                        double efficiency = 1.0 - (dist / bees.getMaxRange());
+                        foodInRange += plant.getCurrentFoodSupply() * efficiency;
+                    }
+                }
+
+                //Population updaten
+                bees.updateDaily(foodInRange);
+                //Nistplatz-Kapazität erzwingen
+                if (bees.getPopulation() > nest.getCapacity()) {
+                    bees.setPopulation(nest.getCapacity());
+                }
+
+                //Gesamtpopulation aufsummieren
+                totalBeePopulation += bees.getPopulation();
             }
 
-            if(dailyLogging){
+            // Prüfe ob ein Event ausgelöst wird
+            if (!possiblePlantEvents.isEmpty() && eventRandom.nextDouble(0, 1) <= DAILY_EVENT_PROBABILITY) {
+                // Wähle ein zufälliges Event aus der Liste, wenn die random Zahl = die Länge der Liste,
+                // dann wende das einzige Event von Bienen
+                int index = eventRandom.nextInt(0, possiblePlantEvents.size());
+                String eventName;
+                // Wende das Event der Bienen an
+                if(index == possiblePlantEvents.size()){
+                    totalBeePopulation = possibleBeeEvent.apply(totalBeePopulation, weather);
+                    eventName = possibleBeeEvent.getName();
+                }else{
+                    // Wende ein Event der Pflanzen an
+                    IPopulationEvent triggeredEvent = possiblePlantEvents.get(index);
+
+                    triggeredEvent.apply(plantPopulations, weather);
+                    eventName = triggeredEvent.getName();
+                }
+
+                // Logge das Event (falls dailyLogging aktiv ist)
+                if (dailyLogging) {
+                    dailyLog.append(String.format("  *** EVENT AM TAG %d: %s wurde ausgelöst! ***%n", day, eventName));
+                }
+            }
+
+            for (IPlantPopulation p : plantPopulations) {
+                p.updateDaily(weather, totalBeePopulation, totalFoodSupply);
+            }
+
+            if (dailyLogging) {
                 logDailyState(currentYear, day);
             }
         }
@@ -89,13 +172,21 @@ public class Simulation {
      * @param day aktuelle Tag während der Vegetationsperiode
      */
     private void logDailyState(int currentYear, int day) {
-        dailyLog.append(String.format("Jahr: %d, Tag: %d, %s, Bienenpopulation: %.2f%n",
+        dailyLog.append(String.format("Jahr: %d, Tag: %d, %s%n",
                 currentYear,
                 day,
-                weather.toString(),
-                beePopulation.getPopulation()));
-
-        for(Plantpopulation p : plantPopulations){
+                weather.toString()));
+        double totalBees = 0;
+        for (NestingSite nest : nestingSites) {dailyLog.append(String.format("  Nistplatz (%.1f, %.1f): Bienen: %.2f / %.0f (%s)%n",
+                nest.getCoordinates().x(),
+                nest.getCoordinates().y(),
+                nest.getBeePopulation().getPopulation(),
+                nest.getCapacity(),
+                nest.getBeePopulation().getName()));
+            totalBees += nest.getBeePopulation().getPopulation();
+        }
+        dailyLog.append(String.format("  GESAMTE Bienenpopulation: %.2f%n", totalBees));
+        for (IPlantPopulation p : plantPopulations) {
             dailyLog.append(p.toString()).append(System.lineSeparator());
         }
     }
@@ -105,11 +196,21 @@ public class Simulation {
      * @param year das aktuell erfasste Jahr
      */
     private void logYearlyState(int year) {
-        yearlyLog.append(String.format("Jahr: %d, Bienenpopulation: %.2f%n",
-                year,
-                beePopulation.getPopulation()));
+        yearlyLog.append(String.format("Jahr: %d%n",
+                year));
+        double totalBees = 0;
+        for (NestingSite nest : nestingSites) {
+            yearlyLog.append(String.format("  Nistplatz (%.1f, %.1f): Bienen: %.2f / %.0f (%s)%n",
+                    nest.getCoordinates().x(),
+                    nest.getCoordinates().y(),
+                    nest.getBeePopulation().getPopulation(),
+                    nest.getCapacity(),
+                    nest.getBeePopulation().getName()));
+            totalBees += nest.getBeePopulation().getPopulation();
+        }
+        yearlyLog.append(String.format("  GESAMTE Bienenpopulation: %.2f%n", totalBees));
 
-        for(Plantpopulation p : plantPopulations){
+        for (IPlantPopulation p : plantPopulations) {
             yearlyLog.append(p.toString()).append(System.lineSeparator());
         }
 
@@ -125,15 +226,16 @@ public class Simulation {
      * - Ruhephase der Blütenpflanzenpopulation:
      *   Hierbei wird die neue Wuchskraft für jede Blütenpflanze bestimmt, die durch eine Multiplikation
      *   von ihrer Samenqualität und einer Zufallszahl berechnet wird, um die Vermehrung zu simulieren.
-     *
      * Nach dem Aufruf dieser Methode erhält man alle Startwerte für die nächste Vegetationsperiode im neuen Jahr.
      */
     private void runRestPhase() {
-        // Ruhephase der Wildbienenpopulation
-        beePopulation.updateRestPhase();
+        // Ruhephase für jede Bienenpopulation in jedem Nest
+        for (NestingSite nest : nestingSites) {
+            nest.getBeePopulation().updateRestPhase();
+        }
 
         // Ruhephase der Blütenpflanzenpopulation
-        for(Plantpopulation p : plantPopulations){
+        for (IPlantPopulation p : plantPopulations) {
             p.updateRestPhase();
         }
     }
@@ -141,13 +243,23 @@ public class Simulation {
     /**
      * Gibt die finalen simulierten Werte der Bienenpopulation und der Blütenpflanzenpopulation nach Ablauf aller Jahre aus.
      */
-    public void printFinalResults(){
+    public void printFinalResults() {
         System.out.println("Die finalen Werte nach " + totalYears + " Jahren betragen: ");
 
-        System.out.printf("Wildbienenpopulation:  %.2f%n",  beePopulation.getPopulation());
+        double totalBees = 0;
+        for (NestingSite nest : nestingSites) {
+            System.out.printf("  Nistplatz (%.1f, %.1f): Bienen: %.2f / %.0f (%s)%n",
+                    nest.getCoordinates().x(),
+                    nest.getCoordinates().y(),
+                    nest.getBeePopulation().getPopulation(),
+                    nest.getCapacity(),
+                    nest.getBeePopulation().getName());
+            totalBees += nest.getBeePopulation().getPopulation();
+        }
+        System.out.printf("GESAMTE Bienenpopulation:  %.2f%n",  totalBees);
 
         System.out.println("Blütenpflanzenpopulation: ");
-        for(Plantpopulation p : plantPopulations){
+        for (IPlantPopulation p : plantPopulations) {
             System.out.println(p.toString());
         }
     }
@@ -156,13 +268,36 @@ public class Simulation {
      * Gibt zuerst die täglichen Logs während der Vegetationsperiode aus.
      * Anschließend werden die jährlichen Logs nach der Vegetationsperiode und Ruhephase ausgegeben.
      */
-    public void printDetailedResults(){
+    public void printDetailedResults() {
         // 1) Tägliche Logs
         System.out.println("// Tägliche Logs //");
-        System.out.println(dailyLog.toString());
+        System.out.println(dailyLog);
 
         // 2) Jährliche Logs
         System.out.println("// Jährliche Logs // ");
-        System.out.println(yearlyLog.toString());
+        System.out.println(yearlyLog);
+    }
+
+    /**
+     * Kontrolliert, ob die Nistplätze und die Pflanzen innerhalb des definierten Felds liegen.
+     * @param sites Liste der Nistplätze
+     * @param plants Liste der Pflanzen
+     */
+    private void testCoordinates(List<NestingSite> sites, List<IPlantPopulation> plants){
+        //Grenzen des Felds
+        double minX = 0;
+        double minY = 0;
+        for(NestingSite nest : sites){
+            Coordinates c = nest.getCoordinates();
+            if(c.x() < minX || c.x() > maxX || c.y() < minY ||c.y() > maxY){
+                throw new IllegalArgumentException("Invalid coordinates for NestingSite");
+            }
+        }
+        for (IPlantPopulation plant : plants){
+            Coordinates c = plant.getCoordinates();
+            if(c.x() < minX || c.x() > maxX || c.y() < minY ||c.y() > maxY){
+                throw new IllegalArgumentException("Pflanze %s liegt außerhalb des Felds".formatted(plant.getSpeciesName()));
+            }
+        }
     }
 }

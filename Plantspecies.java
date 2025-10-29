@@ -10,9 +10,12 @@ public class Plantspecies {
     private final String name;
     private final double cMinus, CPlus;
     private final double fMinus, fPlus; // Feuchtegrenzen
-    private final double hMinus, hPlus; // Blühgrenzen
     private final double q; // Blühintensität
     private final double p; // Bestäubungswahrscheinlichkeit
+    private final double stressFactor; // quadratischer StressFaktor
+    private final double minBloomTemp;
+    private final double avgBloomDurationDays;
+    private final double minSunHoursToday; // minimale benötigte Sonnenscheindauer für Blühstart
 
     /**
     Konstruktor für alle Pflanzspezies
@@ -22,8 +25,10 @@ public class Plantspecies {
     public Plantspecies(String name,
                         double cMinus, double CPlus,
                         double fMinus, double fPlus,
-                        double hMinus, double hPlus,
-                        double q, double p) {
+                        double q, double p,
+                        double stressFactor,
+                        double minBloomTemp, double avgBloomDurationDays, double minSunHoursToday
+    ) {
 
         // ----------------- Grenzen überprüfen ------------------
         // 0 < fMinus < fPlus < 1
@@ -32,23 +37,34 @@ public class Plantspecies {
                     "Feuchtegrenze für " + name + " ist ungültig. Sollte: 0 < fMinus < fPlus < 1. Eingegebener Wert: fMinus=" + fMinus + ", fPlus=" + fPlus);
         }
 
-        // 0 < hMinus < hPlus
-        if (hMinus <= 0 || hPlus <= hMinus) {
-            throw new IllegalArgumentException(
-                    "Blühgrenze für " + name + " ist ungültig. Sollte: 0 < hMinus < hPlus. Eingegebener Wert: hMinus=" + hMinus + ", hPlus=" + hPlus);
-        }
-
-        // 0 < p < 1/(hPlus - hMinus)
-        double pUpperbound = 1.0 / (hPlus - hMinus);
-        if (p <= 0 || p >= pUpperbound) {
-            throw new IllegalArgumentException(
-                    "Bestäubungswahrscheinlichkeit für " + name + " ist ungültig. Sollte: 0 < p < " + pUpperbound + ". Eingegebener Wert: p=" + p);
-        }
-
         // 0 < q < 1/15
         if(q <= 0 || q >= (double) 1 /15){
             throw new IllegalArgumentException(
                     "Blühintensität für " + name + " ist ungültig. Sollte: 0 < q < 1/15. Eingegebener Wert: q=" + q);
+        }
+
+        // 0 < stressFactor < 1
+        if(stressFactor <= 0 || stressFactor >= 1){
+            throw new IllegalArgumentException(
+                    "Stressfaktor für " + name + "ist ungültig. Sollte: 0 < stressFactor < 1. Eingegebener Wert: stressFactor=" + stressFactor);
+        }
+
+        // 0 < minBloomTemp
+        if(minBloomTemp <= 0){
+            throw new IllegalArgumentException(
+                    "minBloomTemp für " + name + "ist ungültig. Sollte > 0. Eingegebener Wert: minBloomTemp=" + minBloomTemp);
+        }
+
+        // 0 < avgBloomDurationDays
+        if(avgBloomDurationDays <= 0){
+            throw new IllegalArgumentException(
+                    "avgBloomDurationDays für " + name + "ist ungültig. Sollte > 0. Eingegebener Wert: avgBloomDurationDays=" + avgBloomDurationDays);
+        }
+
+        // 0 ≤ minSunHoursToday ≤ 12
+        if(minSunHoursToday < 0 || minSunHoursToday > 12){
+            throw new IllegalArgumentException(
+                    "minSunHoursToday für " + name + "ist ungültig. Sollte 0 ≤ minSunHoursToday ≤ 12. Eingegebener Wert: minSunHoursToday=" + minSunHoursToday);
         }
 
         //Wenn die Grenzen stimmen, werden die Werte eingetragen
@@ -57,10 +73,12 @@ public class Plantspecies {
         this.CPlus = CPlus;
         this.fMinus = fMinus;
         this.fPlus = fPlus;
-        this.hMinus = hMinus;
-        this.hPlus = hPlus;
         this.q = q;
         this.p = p;
+        this.stressFactor = stressFactor;
+        this.minBloomTemp = minBloomTemp;
+        this.avgBloomDurationDays = avgBloomDurationDays;
+        this.minSunHoursToday = minSunHoursToday;
     }
 
     // ---------------------------------- GETTER ----------------------------------------------
@@ -74,11 +92,15 @@ public class Plantspecies {
 
     public double getfPlus() { return fPlus; }
 
-    public double gethMinus() { return hMinus; }
-
-    public double gethPlus() { return hPlus; }
-
     public double getQ() { return q; }
 
     public double getP() { return p; }
+
+    public double getStressFactor() { return stressFactor; }
+
+    public double getMinBloomTemp() { return minBloomTemp; }
+
+    public double getAvgBloomDurationDays() { return avgBloomDurationDays; }
+
+    public double getMinSunHoursToday() { return minSunHoursToday; }
 }

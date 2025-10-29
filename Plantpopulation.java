@@ -1,15 +1,16 @@
-import java.util.Random;
-
 /**
  * Diese Klasse modelliert den dynamischen Zustand und das Verhalten einer bestimmten Pflanzenpopulation.
  * Sie beschreibt, wie Wuchskraft, Blütenanteil und Samenqualität der Pflanzenpopulation auf Wetterereignisse und saisonale Zyklen reagiert.
  */
-public class Plantpopulation {
+public class Plantpopulation implements IPlantPopulation {
     private final Plantspecies species;
-    private final Random random;
     private double vigor; //corresponds to y_i
     private double bloomProportion; //corresponds to b_i
     private double seedQuality; //corresponds to s_i
+    private final Coordinates coordinates;
+    private final IDistribution restPhaseDistribution;
+    private boolean hasBloomed; // hatte Pflanze bereits Blühstart?
+    private double bloomCount;
 
 
     /**
@@ -19,89 +20,127 @@ public class Plantpopulation {
      * @param initialVigor die initiale Wuchskraft der Pflanzenpopulation.
      * @throws IllegalArgumentException Wenn die Pflanzenart null ist oder die initiale Wuchskraft kleiner als 0 ist.
      */
-    public Plantpopulation(Plantspecies species, double initialVigor, Random random) {
+    public Plantpopulation(Plantspecies species, double initialVigor, IDistribution restPhaseDistribution, Coordinates coordinates) {
         if (species == null) {
             throw new IllegalArgumentException("Plantspecies must not be null");
         }
         if (initialVigor < 0.0) {
             throw new IllegalArgumentException("Initial vigor must be non-negative");
         }
-        if(random == null){
-            throw new IllegalArgumentException("Random must not be null");
+        if(restPhaseDistribution == null){
+            throw new IllegalArgumentException("restPhaseDistribution must not be null");
+        }
+        if(coordinates == null){
+            throw new IllegalArgumentException("Coordinates must not be null");
         }
         this.species = species;
         this.vigor = initialVigor;
         this.bloomProportion = 0.0;
         this.seedQuality = 0.0;
-        this.random = random;
+        this.coordinates = coordinates;
+        this.restPhaseDistribution = restPhaseDistribution;
+        this.hasBloomed = false;
+        this.bloomCount = 0.0;
     }
 
     /**
-     * Setzt Blütenanteil und Samenqualität der Pflanzenpopulation für eine neue Wachstumsphase zurück.
+     * Setzt den Zustand der Population für eine neue Vegetationsperiode zurück
+     * (z.B. Zurücksetzen von Blütenanteil, Samenqualität und Blühstatus)
      */
+    @Override
     public void resetForNewVegetationPeriod() {
         this.bloomProportion = 0.0;
         this.seedQuality = 0.0;
+        this.hasBloomed = false;
+        this.bloomCount = 0.0;
     }
 
+
     /**
-     * Führt eine tägliche Aktualisierung der Pflanzenpopulation basierend auf Wetter,
-     * Bienenpopulation und Nahrungsangebot aus.
+     * Aktualisiert den Zustand der Population basierend auf dem täglichen Wetter und Umweltfaktoren
      *
-     * @param weather         die aktuellen Wetterbedingungen.
-     * @param beePopulation aktuelle Bienenpopulation
-     * @param totalFoodSupply Nahrungsangebot durch blühende Pflanzen
+     * @param weather         Die täglichen Wetterdaten
+     * @param beePopulation   Die aktuelle Bienenpopulation
+     * @param totalFoodSupply Das gesamte Nahrungsangebot aller Populationen
+     *
+     * STYLE: Objektorientiert (Polymorphie, Delegation)
+     * Die Verwendung der Abstraktion IWeather erlaubt Polymorphie (Austauschbarkeit der Wettermodelle).
+     * Die Methode delegiert alle Aufgaben: Sie fragt Daten beim IWeather-Objekt ab und delegiert die Zustandsveränderung
+     * (Vigor, Bloom, Seeds) an interne private Methoden. Dies sorgt für eine hohe Klassenzusammengehörigkeit.
      */
-    public void updateDaily(Weather weather, double beePopulation, double totalFoodSupply) {
+    @Override
+    public void updateDaily(IWeather weather, double beePopulation, double totalFoodSupply) {
         updateVigor(weather.getSoilMoisture());
-        updateBloom(weather.getAccumulatedSunHours(), weather.getSunHoursToday());
+        updateBloom(weather);
         updateSeeds(weather.getSunHoursToday(), beePopulation, totalFoodSupply);
     }
 
+
     /**
      * Aktualisiert die Wuchskraft der Pflanzenpopulation.
-     * Wenn die Bodenfeuchte niedriger als die untere Feuchtgrenze und höher als die Hälfte der unteren Feuchtgrenze ist,
-     * oder höher als die obere Feuchtigkeitsgrenze und niedriger als das Doppelte der oberen Feuchtgrenze ist,
-     * dann wird die Wuchskraft um 1 % reduziert.
-     * Wenn die Bodenfeuchte niedriger oder gleich der Hälfte der unteren Feuchtgrenze ist,
-     * oder höher oder gleich dem Doppelten der oberen Feuchtgrenze ist,
-     * dann wird die Wuchskraft um 3 % reduziert.
+     * Die Wuchskraft einer Pflanze soll sich bei geringfügiger und kurzzeitiger Überschreitung
+     * der Feuchtegrenzen nur geringfügig auswirken, bei starker oder lang anhaltender Überschreitung
+     * dagegen stark, mit kontinuierlichen Verläufen statt sprunghaften Änderungen.
      *
      * @param f aktuelle Bodenfeuchte
      */
     private void updateVigor(double f) {
         double f_minus = this.species.getfMinus();
         double f_plus = this.species.getfPlus();
-        if ((f_minus / 2 < f && f < f_minus) || (f_plus < f && f < 2 * f_plus)) {
-            this.vigor *= 0.99;
-        } else if (f <= f_minus / 2 || 2 * f_plus <= f) {
-            this.vigor *= 0.97;
+        double stress = 0.0;
+        double k = species.getStressFactor(); // k = quadratischer Stressfaktor
+
+        if (f < f_minus) {
+            stress = k * Math.pow(f_minus - f, 2);
+        } else if (f > f_plus) {
+            stress = k * Math.pow(f - f_plus, 2);
         }
+
+        this.vigor *= (1.0 - stress);
+        if(this.vigor < 0.0) this.vigor = 0.0; // negative Wuchskraft nicht erlaubt
+        this.vigor = Math.max(this.vigor, 50); // sicherstellen, dass Pflanze überlebt → 50 % von initialVigor
     }
 
     /**
      * Aktualisiert den Anteil der in Blüte stehenden Pflanzen.
-     * Wenn die aufsummierte Sonnenscheindauer größer gleich der unteren Blühgrenze und kleiner der oberen Blühgrenze ist,
-     * dann erhöht sich der Blütenanteil der Pflanzenpopulation um qi * (d + 3) bis zu einem Maximum von 1.
-     * Wenn die aufsummierte Sonnenscheindauer größer gleich der oberen Blühgrenze ist,
-     * reduziert sich der Blütenanteil der Pflanzenpopulation um qi * (d + 3) bis zu einem Minimum von 0.
+     * Basierend auf den aktuellen Wetterdaten (Temperatur & Sonnenscheindauer) wird der
+     * Blühstart der Pflanzenpopulation festgelegt. Nachdem der Blühstart erfolgt, werden
+     * die verbleibenden Blühtage bestimmt und anschließend täglich reduziert, bis das
+     * Ende der Blühphase erreicht wurde.
      *
-     * @param h aufsummierte Werte der Sonnenscheindauer ab Beginn der Vegetationsperiode.
-     * @param d Sonnenscheindauer an diesem Tag
+     * @param weather aktuellen Wetterdaten an diesem Tag
+     * STYLE: Objektorientiert → Innerhalb dieser Methode wird die Blühlogik gekapselt,
+     *        d.h. also, dass keine externe Klasse weiß, wie die Aktualisierung der Blüte
+     *        berechnet wird. Da die Methode private ist, kann sie von außen nicht verändert
+     *        werden und Variablen wie vigor oder bloomProportion können nur innerhalb der
+     *        Klasse verändert werden.
      */
-    private void updateBloom(double h, double d) {
-        double h_minus = this.species.gethMinus();
-        double h_plus = this.species.gethPlus();
-        if (h_minus <= h && h < h_plus) {
-            if (this.bloomProportion < 1.0) {
-                this.bloomProportion += this.species.getQ() * (d +  3);
-            }
-        } else if (h >= h_plus) {
-            this.bloomProportion -= this.species.getQ() * (d +  3);
+    private void updateBloom(IWeather weather) {
+        double temperature = weather.getTemperature();
+        double sunHoursToday = weather.getSunHoursToday();
+        double speciesMinBloomTemp = this.species.getMinBloomTemp();
+        double speciesMinBloomSunHours = this.species.getMinSunHoursToday();
+
+        // Erfüllt Pflanze die Blühbedingung für Blühstart
+        boolean canBloom = temperature > speciesMinBloomTemp && sunHoursToday > speciesMinBloomSunHours;
+
+        // Pflanze kann starten mit Blühen, wenn Blühstart noch nicht war & Blühbedingung für Blühstart gegeben ist
+        if(!hasBloomed && canBloom){
+            hasBloomed = true;
+            bloomCount = 0.0;
         }
-        // Kontrolliert, ob die Blütenrate < 0 oder > 1
-        if (this.bloomProportion < 0.0) this.bloomProportion = 0.0;
-        if (this.bloomProportion > 1.0) this.bloomProportion = 1.0;
+
+        if(hasBloomed){
+            bloomCount++;
+            bloomProportion = Math.min(1.0, bloomProportion + species.getQ() * sunHoursToday); // Grenzen einhalten: 0 ≤ bloomProportion ≤ 1
+
+            // Ende der Blühphase
+            int randomNum = (int) (Math.random() * 5);
+            if(bloomCount > this.species.getAvgBloomDurationDays() + randomNum){
+                hasBloomed = false;
+                bloomProportion = 0.0;
+            }
+        }
     }
 
     /**
@@ -136,32 +175,36 @@ public class Plantpopulation {
     public void updateRestPhase() {
         double c_minus = this.species.getcMinus();
         double c_plus = this.species.getCPlus();
-        double randomNumber = this.random.nextDouble() * (Math.nextUp(c_plus) - c_minus) + c_minus;
+        double randomNumber = this.restPhaseDistribution.nextDouble(c_minus, c_plus);
         this.vigor = this.vigor * this.seedQuality * randomNumber;
     }
 
     /**
-     * Getter-Methode der Wuchskraft.
-     * @return Wuchskraft
+     * Setzt die Wuchskraft direkt.
+     * Wird von Events (z.B. MowingEvent) genutzt.
+     * @param newVigor Der neue Wert für die Wuchskraft.
      */
-    public double getVigor() {
-        return this.vigor;
+    public void setVigor(double newVigor) {
+        this.vigor = newVigor < 0 ? 0 : newVigor;
     }
 
     /**
-     * Getter-Methode des Blütenanteils.
-     * @return aktuellen Blütenanteil
+     * Setzt den Blütenanteil direkt.
+     * Wird von Events (z.B. MowingEvent) genutzt.
+     * @param newBloomProportion Der neue Wert für den Blütenanteil (sollte 0-1 sein).
      */
-    public double getBloomProportion() {
-        return this.bloomProportion;
+    public void setBloomProportion(double newBloomProportion) {
+        if (newBloomProportion < 0.0) newBloomProportion = 0.0;
+        if (newBloomProportion > 1.0) newBloomProportion = 1.0;
+        this.bloomProportion = newBloomProportion;
     }
 
-    /**
-     * Getter-Methode
-     * @return Name der Pflanzenart
-     */
-    public String getSpeciesName() {
-        return this.species.getName();
+    public Coordinates getCoordinates() {
+        return coordinates;
+    }
+
+    public Object getSpeciesName() {
+        return species.getName();
     }
 
     /**
@@ -170,6 +213,13 @@ public class Plantpopulation {
      */
     public double getCurrentFoodSupply() {
         return this.vigor * this.bloomProportion;
+    }
+
+    public double getVigor() {
+        return this.vigor;
+    }
+    public double getBloomProportion() {
+        return this.bloomProportion;
     }
 
     /**
