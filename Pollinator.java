@@ -1,3 +1,3 @@
 
-public interface Pollinator {
+public interface Pollinator extends Observation{
 }

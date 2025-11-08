@@ -8,7 +8,7 @@ import java.util.List;
  * @invariant observations != null
  * @invariant index >= 0 && index <= observations.size()
  */
-public class BehaviorIter<T extends Bee> implements Iterator<T> {
+public class BehaviorIter<T extends Observation> implements Iterator<T> {
 
     private final List<T> observations;
     private int idx;

@@ -1,4 +1,5 @@
 
+public interface CommunalBee extends Bee {
 
-public interface CommunalBee {
+    BehaviorIter<CommunalBee> communal();
 }
