@@ -34,4 +34,34 @@ public class Honeybee implements SocialBee{
     public BehaviorIter<SocialBee> social() {
         return null;
     }
+
+    @Override
+    public LocalDateTime getTimestamp() {
+        return null;
+    }
+
+    @Override
+    public String getComment() {
+        return null;
+    }
+
+    @Override
+    public void remove() {
+
+    }
+
+    @Override
+    public boolean valid() {
+        return false;
+    }
+
+    @Override
+    public BehaviorIter<Observation> later() {
+        return null;
+    }
+
+    @Override
+    public BehaviorIter<Observation> earlier() {
+        return null;
+    }
 }

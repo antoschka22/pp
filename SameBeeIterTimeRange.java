@@ -17,41 +17,18 @@ public class SameBeeIterTimeRange {
     /**
      * Konstruktor für den SameBeeIterTimeRange.
      *
-     * @param allObservations Liste aller Beobachtungen des gleichen Individuums.
-     * @param from der Startzeitpunkt des Beobachtungszeitraums (inklusive)
-     * @param to der Endzeitpunkt des Beobachtungszeitraums (inklusive)
+     * @param filteredObservations Liste aller Beobachtungen des gleichen Individuums,
+     * die bereits nach dem Zeitbereich gefiltert
+     * und sortiert wurden.
      * @pre  allObservations != null
      * @pre  from und to != null
      * @post Es werden die Beobachtungen intern kopiert und mithilfe des Aufrufs der
      *       Hilfsmethode sortByTime wird dafür gesorgt, dass die Beobachtungen innerhalb
      *       des angegebenen Zeitbereichs liegen. Der Iterator startet bei dem Index 0.
      */
-    public SameBeeIterTimeRange(List<Bee> allObservations, LocalDateTime from, LocalDateTime to) {
-        this.observationsBee = sortByTime(allObservations, from, to);
+    public SameBeeIterTimeRange(List<Bee> filteredObservations) {
+        this.observationsBee = new ArrayList<>(filteredObservations);
         this.idx = 0;
-    }
-
-    /**
-     * Hilfsmethode, um alle Beobachtungen der gegebenen Liste, die innerhalb des angegebenen Zeitbereichs liegen,
-     * in einer neuen Liste zu speichern.
-     * @return Gibt die Liste aller Beobachtungen, die innerhalb des angegebenen Zeitbereichs liegen.
-     *
-     * @param observations Liste aller Beobachtungen des gleichen Individuums.
-     * @param from der Startzeitpunkt des Beobachtungszeitraums (inklusive)
-     *      * @param to der Endzeitpunkt des Beobachtungszeitraums (inklusive)
-     * @pre observations != null
-     * @pre from und to != null
-     * @post Gibt die Liste aller Beobachtungen, die innerhalb des angegebenen Zeitbereichs, von from bis to, liegen.
-     */
-    private static List<Bee> sortByTime(List<Bee> observations, LocalDateTime from, LocalDateTime to) {
-        List<Bee> sorted = new ArrayList<>();
-        for(Bee o : observations) {
-            LocalDateTime t = null; //o.getObservationTime();
-            if(!t.isBefore(from) && !t.isAfter(to)) {
-                sorted.add(o);
-            }
-        }
-        return sorted;
     }
 
     /**

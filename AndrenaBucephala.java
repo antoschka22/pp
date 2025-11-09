@@ -235,9 +235,11 @@ public class AndrenaBucephala implements CommunalBee, SolitaryBee {
      */
     @Override
     public SameBeeIter sameBee() {
-        // Muss alle Beobachtungen des gleichen Individuums liefern
-        // Deine Implementierung liefert einen leeren Iterator
-        return new SameBeeIter(Collections.emptyList());
+        List<Bee> sameBees = getSameIndividualObservations();
+
+        sameBees.sort(Comparator.comparing(Observation::getTimestamp));
+
+        return new SameBeeIter(sameBees);
     }
 
     /**
@@ -246,7 +248,17 @@ public class AndrenaBucephala implements CommunalBee, SolitaryBee {
      */
     @Override
     public SameBeeIterReverse sameBee(boolean reverseOrder) {
-        return new SameBeeIterReverse(Collections.emptyList());
+        List<Bee> sameBees = getSameIndividualObservations();
+
+        if (reverseOrder) {
+            // Absteigend
+            sameBees.sort(Comparator.comparing(Observation::getTimestamp).reversed());
+        } else {
+            // Aufsteigend
+            sameBees.sort(Comparator.comparing(Observation::getTimestamp));
+        }
+
+        return new SameBeeIterReverse(sameBees);
     }
 
     /**
@@ -255,7 +267,26 @@ public class AndrenaBucephala implements CommunalBee, SolitaryBee {
      */
     @Override
     public SameBeeIterTimeRange sameBee(LocalDateTime from, LocalDateTime to) {
-        return new SameBeeIterTimeRange(Collections.emptyList(), from, to);
+        if (from == null || to == null) {
+            throw new IllegalArgumentException("From- und To-Datum dürfen nicht null sein.");
+        }
+
+        List<Bee> sameBees = getSameIndividualObservations();
+        List<Bee> filteredBees = new ArrayList<>();
+
+        for (Bee bee : sameBees) {
+            LocalDateTime t = bee.getTimestamp();
+
+            // Prüfung: !(t < from) UND !(t > to)
+            // (bedeutet: t >= from AND t <= to)
+            if (!t.isBefore(from) && !t.isAfter(to)) {
+                filteredBees.add(bee);
+            }
+        }
+
+        filteredBees.sort(Comparator.comparing(Observation::getTimestamp));
+
+        return new SameBeeIterTimeRange(filteredBees);
     }
 
     // --- Methoden von WildBee (via SolitaryBee) ---
@@ -289,5 +320,39 @@ public class AndrenaBucephala implements CommunalBee, SolitaryBee {
     @Override
     public BehaviorIter<CommunalBee> communal() {
         return new BehaviorIter<>(Collections.emptyList());
+    }
+
+    /**
+     * Private Hilfsmethode
+     * Sammelt alle gültigen Beobachtungen (valid() == true) des gleichen
+     * Individuums wie this aus der globalen Liste.
+     *
+     * @return Eine unsortierte Liste von Bee-Beobachtungen.
+     */
+    private List<Bee> getSameIndividualObservations() {
+        List<Bee> sameIndividuals = new ArrayList<>();
+        Object thisId = this.individualIdentifier();
+
+        // Es wird angenommen, dass individualIdentifier() nie null ist,
+        // da es im Konstruktor immer initialisiert wird.
+
+        synchronized (ObservationData.ALL_OBSERVATIONS) {
+            for (Observation obs : ObservationData.ALL_OBSERVATIONS) {
+
+                // Filterkriterien:
+                // 1. Muss gültig sein
+                // 2. Muss eine 'Bee' sein (um individualIdentifier() aufrufen zu können)
+                // 3. Muss dasselbe Individuum sein (Vergleich über .equals())
+                if (obs.valid() && obs instanceof Bee) {
+                    Bee beeObs = (Bee) obs;
+                    // Stelle sicher, dass beide IDs nicht null sind,
+                    // bevor .equals() gerufen wird
+                    if (thisId.equals(beeObs.individualIdentifier())) {
+                        sameIndividuals.add(beeObs);
+                    }
+                }
+            }
+        }
+        return sameIndividuals;
     }
 }

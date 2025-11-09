@@ -20,31 +20,18 @@ public class SameBeeIterReverse {
     /**
      * Konstruktor für den SameBeeIterReverse.
      *
-     * @param allObservations Liste aller Beobachtungen des gleichen Individuums.
+     * @param sortedObservations Liste aller Beobachtungen des gleichen Individuums
+     *  bereits in der korrekten Sortierreihenfolge
+     * (aufsteigend ODER absteigend).
      * @pre  allObservations != null
      * @post Es werden die Beobachtungen intern kopiert und mithilfe des Aufrufs der
      *       Hilfsmethode reverse wird dafür gesorgt, dass die Beobachtungen in
      *       umgekehrter Reihenfolge gespeichert werden. Der Iterator startet bei dem
      *       Index 0.
      */
-    public SameBeeIterReverse(List<Bee> allObservations) {
-        this.observationsBeeReverse = reverse(allObservations);
+    public SameBeeIterReverse(List<Bee> sortedObservations) {
+        this.observationsBeeReverse = new ArrayList<>(sortedObservations);
         this.idx = 0;
-    }
-
-    /**
-     * Hilfsmethode, um die gegebene Liste in umgekehrter Reihenfolge zu erhalten.
-     * @return Gibt die Liste aller Beobachtungen in umgekehrter Reihenfolge zurück.
-     *
-     * @param allObservations Liste aller Beobachtungen des gleichen Individuums.
-     * @pre allObservations != null
-     * @post Gibt die Liste alle Beobachtungen in umgekehrter Reihenfolge zurück,
-     *       mit reversed.size() == allObservations.size().
-     */
-    private static List<Bee> reverse(List<Bee> allObservations) {
-        List<Bee> reversed = new ArrayList<>(allObservations);
-        Collections.reverse(reversed);
-        return reversed;
     }
 
     /**

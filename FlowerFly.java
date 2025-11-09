@@ -1,3 +1,8 @@
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+
 /**
  * Klasse FlowerFly: Repräsentiert eine Beobachtung einer Schwebfliege
  * Schwebfliegen sind Pollinator, aber explizit
@@ -65,21 +70,55 @@ public class FlowerFly implements Pollinator {
         return isValid;
     }
 
-    /**
-     * @pre true
-     * @post Liefert null (laut Implementierung)
-     */
     @Override
     public BehaviorIter<Observation> later() {
-        return null;
+        LocalDateTime thisTime = this.getTimestamp();
+
+        List<Observation> laterObservations = new ArrayList<>();
+
+        // Synchronisiere den Zugriff, da die Liste threadsicher ist
+        synchronized (ObservationData.ALL_OBSERVATIONS) {
+            for (Observation obs : ObservationData.ALL_OBSERVATIONS) {
+
+                // Muss gültig sein (valid() == true)
+                // Muss nach dieser Beobachtung sein
+                // Darf nicht diese Beobachtung selbst sein
+                if (obs.valid() && obs != this && obs.getTimestamp().isAfter(thisTime)) {
+                    laterObservations.add(obs);
+                }
+            }
+        }
+
+        // Sortiere: näher liegend zuerst
+        // aufsteigend nach Zeit
+        laterObservations.sort(Comparator.comparing(Observation::getTimestamp));
+
+        return new BehaviorIter<>(laterObservations);
     }
 
-    /**
-     * @pre true
-     * @post Liefert null (laut Implementierung)
-     */
     @Override
     public BehaviorIter<Observation> earlier() {
-        return null;
+        LocalDateTime thisTime = this.getTimestamp();
+
+        List<Observation> earlierObservations = new ArrayList<>();
+
+        synchronized (ObservationData.ALL_OBSERVATIONS) {
+            for (Observation obs : ObservationData.ALL_OBSERVATIONS) {
+
+                // Muss gültig sein (valid() == true)
+                // Muss vor dieser Beobachtung sein
+                // Darf nicht diese Beobachtung selbst sein
+                if (obs.valid() && obs != this && obs.getTimestamp().isBefore(thisTime)) {
+                    earlierObservations.add(obs);
+                }
+            }
+        }
+
+        // Sortiere: näher liegend zuerst
+        // absteigend nach Zeit (Comparator.reverseOrder())
+        earlierObservations.sort(Comparator.comparing(Observation::getTimestamp).reversed());
+
+        // 6. Gib den Iterator zurück
+        return new BehaviorIter<>(earlierObservations);
     }
 }
