@@ -1,6 +1,6 @@
 /**
  * Interface Wasp: Repräsentiert die Beobachtung eines Tiers einer Wespenart
- * Laut Spezifikation ist jede Biene (Bee) auch eine Wespe (Stechimme)
+ * Laut Spezifikation ist jede Biene auch eine Wespe
  *
  * @invariant Erbt Invarianten von Observation
  */

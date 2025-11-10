@@ -29,7 +29,7 @@ public interface Bee extends Wasp, Pollinator{
      * @pre N/A
      * @post Gibt alle Beobachtungen in zeitlich sortiert nach dem Beobachtungszeitraum des gleichen Individuums zurück.
      */
-    SameBeeIter sameBee();
+    BehaviorIter<Bee> sameBee();
 
     /**
      * Iterator über alle Beobachtungen des gleichen Individuums.
@@ -39,7 +39,7 @@ public interface Bee extends Wasp, Pollinator{
      * @pre N/A
      * @post Gibt alle Beobachtungen entsprechend reverseOrder des gleichen Individuums zurück.
      */
-    SameBeeIterReverse sameBee(boolean reverseOrder);
+    BehaviorIter<Bee> sameBee(boolean reverseOrder);
 
     /**
      * Iterator über alle Beobachtungen des gleichen Individuums innerhalb eines Zeitraums, der durch LocalDateTime from
@@ -51,5 +51,5 @@ public interface Bee extends Wasp, Pollinator{
      * @post Gibt alle Beobachtungen des gleichen Individuums innerhalb eines Zeitraums zurück, der durch LocalDateTime
      *       from und LocalDateTime to bestimmt wurde.
      */
-    SameBeeIterTimeRange sameBee(LocalDateTime from, LocalDateTime to);
+    BehaviorIter<Bee> sameBee(LocalDateTime from, LocalDateTime to);
 }

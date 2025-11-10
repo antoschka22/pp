@@ -1,6 +1,5 @@
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
@@ -25,34 +24,116 @@ public class AndrenaBucephala implements CommunalBee, SolitaryBee {
     // Attribute zur Identifizierung des Individuums
     private final Object individualIdentifier;
     private final Long markerId;
+    private final boolean isSolitary;
+    private final boolean isCommunal;
+    private final Boolean fromBreeding; // falls nicht bekannt, dann null
 
 
     // --- Konstruktoren ---
 
     /**
-     * Konstruktor für eine neue Beobachtung eines bisher unbekannten Individuums
-     * ohne Marker-ID
+     * Konstruktor für eine neue Beobachtung eines bisher unbekannten AndrenaBucephala
+     * ohne Marker-ID und ohne Zuchtangabe
      *
-     * @param timestamp Zeitstempel der Beobachtung.
-     * @param comment   Textueller Kommentar.
+     * @param timestamp Zeitstempel der Beobachtung
+     * @param comment   Textueller Kommentar
+     * @param isSolitary ist ein solitäres Individuum
      * @pre timestamp != null && comment != null
      * @post Neues Objekt erstellt. this.valid() == true.
      * this.markerID() == null.
      * this.individualIdentifier() liefert ein neues, einzigartiges Objekt.
      */
-    public AndrenaBucephala(LocalDateTime timestamp, String comment) {
+    public AndrenaBucephala(LocalDateTime timestamp, String comment, boolean isSolitary, boolean isCommunal) {
         this.timestamp = timestamp;
         this.comment = comment;
         this.isValid = true;
         this.individualIdentifier = new Object(); // Neues Individuum
         this.markerId = null;
+        this.isSolitary = isSolitary;
+        this.isCommunal = isCommunal;
+        this.fromBreeding = null;
 
         ObservationData.ALL_OBSERVATIONS.add(this);
     }
 
     /**
-     * Konstruktor für eine Beobachtung, die sich auf dasselbe Individuum
-     * wie eine frühere Beobachtung bezieht
+     * Konstruktor für eine neue Beobachtung eines bisher unbekannten AndrenaBucephala
+     * ohne Marker-ID und mit Zuchtangabe
+     *
+     * @param timestamp Zeitstempel der Beobachtung
+     * @param comment   Textueller Kommentar
+     * @param isSolitary ist ein solitäres Individuum
+     * @pre timestamp != null && comment != null
+     * @post Neues Objekt erstellt. this.valid() == true.
+     * this.markerID() == null.
+     * this.individualIdentifier() liefert ein neues, einzigartiges Objekt.
+     */
+    public AndrenaBucephala(LocalDateTime timestamp, String comment, boolean isSolitary, Boolean fromBreeding, boolean isCommunal) {
+        this.timestamp = timestamp;
+        this.comment = comment;
+        this.isValid = true;
+        this.individualIdentifier = new Object(); // Neues Individuum
+        this.markerId = null;
+        this.isSolitary = isSolitary;
+        this.isCommunal = isCommunal;
+        this.fromBreeding = fromBreeding;
+
+        ObservationData.ALL_OBSERVATIONS.add(this);
+    }
+
+    /**
+     * Konstruktor für eine neue Beobachtung eines bisher unbekannten AndrenaBucephala
+     * mit Marker-ID, ohne Angabe eines Individual-Identifier und ohne Zuchtangabe
+     *
+     * @param timestamp Zeitstempel der Beobachtung
+     * @param comment   Textueller Kommentar
+     * @param isSolitary ist ein solitäres Individuum
+     * @pre timestamp != null && comment != null
+     * @post Neues Objekt erstellt. this.valid() == true.
+     * this.markerID() == null.
+     * this.individualIdentifier() liefert ein neues, einzigartiges Objekt.
+     */
+    public AndrenaBucephala(LocalDateTime timestamp, String comment, boolean isSolitary, Long markerId, boolean isCommunal) {
+        this.timestamp = timestamp;
+        this.comment = comment;
+        this.isValid = true;
+        this.individualIdentifier = new Object(); // Neues Individuum
+        this.markerId = markerId;
+        this.isSolitary = isSolitary;
+        this.fromBreeding = null;
+        this.isCommunal = isCommunal;
+
+        ObservationData.ALL_OBSERVATIONS.add(this);
+    }
+
+    /**
+     * Konstruktor für eine neue Beobachtung eines bisher unbekannten AndrenaBucephala
+     * mit Marker-ID, ohne Angabe eines Individual-Identifier und einer Zuchtangabe
+     *
+     * @param timestamp Zeitstempel der Beobachtung
+     * @param comment   Textueller Kommentar
+     * @param isSolitary ist ein solitäres Individuum
+     * @pre timestamp != null && comment != null
+     * @post Neues Objekt erstellt. this.valid() == true.
+     * this.markerID() == null.
+     * this.individualIdentifier() liefert ein neues, einzigartiges Objekt.
+     */
+    public AndrenaBucephala(LocalDateTime timestamp, String comment, boolean isSolitary, Boolean fromBreeding, Long markerId, boolean isCommunal) {
+        this.timestamp = timestamp;
+        this.comment = comment;
+        this.isValid = true;
+        this.individualIdentifier = new Object(); // Neues Individuum
+        this.markerId = markerId;
+        this.isSolitary = isSolitary;
+        this.fromBreeding = fromBreeding;
+        this.isCommunal = isCommunal;
+
+        ObservationData.ALL_OBSERVATIONS.add(this);
+    }
+
+    /**
+     * Konstruktor für eine neue Beobachtung einer bisher unbekannten AndrenaBucephala mit einer Marker-ID und einen Individuum-Identifier,
+     * ohne Zuchtangabe.
      *
      * @param timestamp          Zeitstempel der Beobachtung.
      * @param comment            Textueller Kommentar.
@@ -62,57 +143,40 @@ public class AndrenaBucephala implements CommunalBee, SolitaryBee {
      * this.individualIdentifier() == previousObservation.individualIdentifier().
      * this.markerID() == previousObservation.markerID().
      */
-    public AndrenaBucephala(LocalDateTime timestamp, String comment, Bee previousObservation) {
+    public AndrenaBucephala(LocalDateTime timestamp, String comment, boolean isSolitary, AndrenaBucephala previousObservation, Long markerId, boolean isCommunal) {
         this.timestamp = timestamp;
         this.comment = comment;
         this.isValid = true;
         this.individualIdentifier = previousObservation.individualIdentifier();
-        this.markerId = previousObservation.markerID();
-
-        ObservationData.ALL_OBSERVATIONS.add(this);
-    }
-
-    /**
-     * Konstruktor für eine neue Beobachtung eines Individuums mit Marker-ID
-     *
-     * @param timestamp Zeitstempel der Beobachtung.
-     * @param comment   Textueller Kommentar.
-     * @param markerId  Die numerische Marker-ID.
-     * @pre timestamp != null && comment != null
-     * @post Neues Objekt erstellt. this.valid() == true.
-     * this.markerID() == markerId.
-     * this.individualIdentifier() liefert ein neues, einzigartiges Objekt.
-     */
-    public AndrenaBucephala(LocalDateTime timestamp, String comment, long markerId) {
-        this.timestamp = timestamp;
-        this.comment = comment;
-        this.isValid = true;
-        this.individualIdentifier = new Object(); // Neues Individuum
+        this.isSolitary = isSolitary;
+        this.fromBreeding = null;
         this.markerId = markerId;
+        this.isCommunal = isCommunal;
 
         ObservationData.ALL_OBSERVATIONS.add(this);
     }
 
     /**
-     * Konstruktor für eine Beobachtung, die sich auf ein bekanntes Individuum
-     * (durch previousObservation) bezieht und gleichzeitig eine Marker-ID
-     * (erneut) angibt
+     * Konstruktor für eine neue Beobachtung einer bisher unbekannten Lasioglossum mit einer Marker-ID und einen Individuum-Identifier,
+     * mit Zuchtangabe.
      *
      * @param timestamp          Zeitstempel der Beobachtung.
      * @param comment            Textueller Kommentar.
      * @param previousObservation Eine frühere Beobachtung desselben Individuums.
-     * @param markerId           Die numerische Marker-ID.
      * @pre timestamp != null && comment != null && previousObservation != null
      * @post Neues Objekt erstellt. this.valid() == true.
      * this.individualIdentifier() == previousObservation.individualIdentifier().
-     * this.markerID() == markerId (oder previousObservation.markerID(), je nach Spezifikation).
+     * this.markerID() == previousObservation.markerID().
      */
-    public AndrenaBucephala(LocalDateTime timestamp, String comment, Bee previousObservation, long markerId) {
+    public AndrenaBucephala(LocalDateTime timestamp, String comment, boolean isSolitary, AndrenaBucephala previousObservation, Long markerId, boolean fromBreeding, boolean isCommunal) {
         this.timestamp = timestamp;
         this.comment = comment;
         this.isValid = true;
         this.individualIdentifier = previousObservation.individualIdentifier();
+        this.isSolitary = isSolitary;
+        this.fromBreeding = fromBreeding;
         this.markerId = markerId;
+        this.isCommunal = isCommunal;
 
         ObservationData.ALL_OBSERVATIONS.add(this);
     }
@@ -120,8 +184,11 @@ public class AndrenaBucephala implements CommunalBee, SolitaryBee {
     // --- Methoden von Observation ---
 
     /**
+     * Gibt den Zeitstempel (Datum und Uhrzeit) der Beobachtung zurück.
+     *
+     * @return Der Zeitstempel der Beobachtung
      * @pre true
-     * @post Liefert den Zeitstempel (siehe Konstruktor)
+     * @post Liefert den Zeitstempel (LocalDateTime) der Beobachtung
      */
     @Override
     public final LocalDateTime getTimestamp() {
@@ -129,8 +196,11 @@ public class AndrenaBucephala implements CommunalBee, SolitaryBee {
     }
 
     /**
+     * Gibt den beschreibenden Kommentar zur Beobachtung zurück
+     *
+     * @return Der Kommentartext
      * @pre true
-     * @post Liefert den Kommentar (siehe Konstruktor)
+     * @post Liefert den Kommentar (String) der Beobachtung.
      */
     @Override
     public final String getComment() {
@@ -138,6 +208,10 @@ public class AndrenaBucephala implements CommunalBee, SolitaryBee {
     }
 
     /**
+     * Entfernt die Beobachtung logisch aus dem Datenbestand.
+     * Nach dem Aufruf gibt valid() false zurück.
+     * Das Objekt selbst und seine Methoden funktionieren weiterhin.
+     *
      * @pre true
      * @post this.valid() == false
      */
@@ -147,8 +221,11 @@ public class AndrenaBucephala implements CommunalBee, SolitaryBee {
     }
 
     /**
+     * Prüft, ob die Beobachtung gültig (nicht entfernt) ist.
+     *
+     * @return true, wenn remove() noch nicht aufgerufen wurde, sonst false.
      * @pre true
-     * @post Liefert true, wenn remove() nicht gerufen wurde, sonst false.
+     * @post Liefert true, wenn die Beobachtung gültig ist, andernfalls false.
      */
     @Override
     public final boolean valid() {
@@ -156,6 +233,16 @@ public class AndrenaBucephala implements CommunalBee, SolitaryBee {
     }
 
 
+    /**
+     * Retourniert einen Iterator über alle Beobachtungen, die zeitlich später
+     * als diese (this) stattgefunden haben.
+     * Die Iteration erfolgt mit zeitlich näher liegenden Beobachtungen zuerst
+     *
+     * @return Ein BehaviorIter<Observation> über spätere Beobachtungen.
+     * @pre true
+     * @post Liefert einen Iterator, der alle gültigen Beobachtungen > this.getTimestamp()
+     * in aufsteigender Reihenfolge (relativ zu this) zurückgibt.
+     */
     @Override
     public BehaviorIter<Observation> later() {
         LocalDateTime thisTime = this.getTimestamp();
@@ -175,14 +262,22 @@ public class AndrenaBucephala implements CommunalBee, SolitaryBee {
             }
         }
 
-        // 5. Sortiere: "näher liegend zuerst"
-        // Aufsteigend nach Zeit
         laterObservations.sort(Comparator.comparing(Observation::getTimestamp));
 
         return new BehaviorIter<>(laterObservations);
     }
 
 
+    /**
+     * Retourniert einen Iterator über alle Beobachtungen, die zeitlich früher
+     * als diese (this) stattgefunden haben.
+     * Die Iteration erfolgt mit zeitlich näher liegenden Beobachtungen zuerst
+     *
+     * @return Ein BehaviorIter<Observation> über frühere Beobachtungen.
+     * @pre true
+     * @post Liefert einen Iterator, der alle gültigen Beobachtungen < this.getTimestamp()
+     * in absteigender Reihenfolge (relativ zu this) zurückgibt.
+     */
     @Override
     public BehaviorIter<Observation> earlier() {
         LocalDateTime thisTime = this.getTimestamp();
@@ -202,7 +297,6 @@ public class AndrenaBucephala implements CommunalBee, SolitaryBee {
             }
         }
 
-        // Sortiere: "näher liegend zuerst"
         // Absteigend nach Zeit (Comparator.reverseOrder())
         earlierObservations.sort(Comparator.comparing(Observation::getTimestamp).reversed());
 
@@ -212,8 +306,10 @@ public class AndrenaBucephala implements CommunalBee, SolitaryBee {
     // --- Methoden von Bee ---
 
     /**
-     * @pre true
-     * @post Liefert das Identifikationsobjekt dieses Individuums
+     * Ein internes Objekt, das alle Beobachtungen eines Individuums erkennt und gruppiert.
+     *
+     * @pre N/A
+     * @post Alle Beobachtungen derselben Biene liefern das gleiche Objekt zurück.
      */
     @Override
     public Object individualIdentifier() {
@@ -221,8 +317,11 @@ public class AndrenaBucephala implements CommunalBee, SolitaryBee {
     }
 
     /**
-     * @pre true
-     * @post Liefert die Marker-ID (Long) oder null, wenn nicht markiert
+     * Gibt die Marker-ID zurück.
+     * Wenn das Individuum nicht markiert ist, dann ist Marker-ID null.
+     *
+     * @pre N/A
+     * @post Gibt entweder null oder eine Zahl zurück, die eindeutig das markierte Individuum repräsentiert.
      */
     @Override
     public Long markerID() {
@@ -230,24 +329,30 @@ public class AndrenaBucephala implements CommunalBee, SolitaryBee {
     }
 
     /**
-     * @pre true
-     * @post Liefert einen (leeren) Iterator
+     * Iterator über alle Beobachtungen des gleichen Individuums in aufsteigender Reihenfolge.
+     *
+     * @pre N/A
+     * @post Gibt alle Beobachtungen in zeitlich sortiert nach dem Beobachtungszeitraum des gleichen Individuums zurück.
      */
     @Override
-    public SameBeeIter sameBee() {
+    public BehaviorIter<Bee> sameBee() {
         List<Bee> sameBees = getSameIndividualObservations();
 
         sameBees.sort(Comparator.comparing(Observation::getTimestamp));
 
-        return new SameBeeIter(sameBees);
+        return new BehaviorIter<>(sameBees);
     }
 
     /**
-     * @pre true
-     * @post Liefert einen (leeren) Iterator
+     * Iterator über alle Beobachtungen des gleichen Individuums.
+     *
+     * @param reverseOrder true: Rückgabe erfolgt in absteigender Reihenfolge
+     *                     false: Rückgabe erfolgt in aufsteigender Reihenfolge
+     * @pre N/A
+     * @post Gibt alle Beobachtungen entsprechend reverseOrder des gleichen Individuums zurück.
      */
     @Override
-    public SameBeeIterReverse sameBee(boolean reverseOrder) {
+    public BehaviorIter<Bee> sameBee(boolean reverseOrder) {
         List<Bee> sameBees = getSameIndividualObservations();
 
         if (reverseOrder) {
@@ -258,15 +363,21 @@ public class AndrenaBucephala implements CommunalBee, SolitaryBee {
             sameBees.sort(Comparator.comparing(Observation::getTimestamp));
         }
 
-        return new SameBeeIterReverse(sameBees);
+        return new BehaviorIter<>(sameBees);
     }
 
     /**
-     * @pre from != null && to != null
-     * @post Liefert einen (leeren) Iterator
+     * Iterator über alle Beobachtungen des gleichen Individuums innerhalb eines Zeitraums, der durch LocalDateTime from
+     * und LocalDateTime to bestimmt wird.
+     *
+     * @param from der Startzeitpunkt des Beobachtungszeitraums (inklusive)
+     * @param to der Endzeitpunkt des Beobachtungszeitraums (inklusive)
+     * @pre from und to != null
+     * @post Gibt alle Beobachtungen des gleichen Individuums innerhalb eines Zeitraums zurück, der durch LocalDateTime
+     *       from und LocalDateTime to bestimmt wurde.
      */
     @Override
-    public SameBeeIterTimeRange sameBee(LocalDateTime from, LocalDateTime to) {
+    public BehaviorIter<Bee> sameBee(LocalDateTime from, LocalDateTime to) {
         if (from == null || to == null) {
             throw new IllegalArgumentException("From- und To-Datum dürfen nicht null sein.");
         }
@@ -286,40 +397,92 @@ public class AndrenaBucephala implements CommunalBee, SolitaryBee {
 
         filteredBees.sort(Comparator.comparing(Observation::getTimestamp));
 
-        return new SameBeeIterTimeRange(filteredBees);
+        return new BehaviorIter<>(filteredBees);
     }
 
     // --- Methoden von WildBee (via SolitaryBee) ---
 
     /**
-     * @pre true
-     * @post Liefert einen (leeren) Iterator
+     * Gibt einen Iterator über jede Beobachtung desselben Individuums zurück, abhängig davon,
+     * ob die Beobachtung keine bzw. eine Abstimmung aus einer Zucht angibt.
+     * @param fromBreeding true: liefert nur Beobachtungen, bei denen die Abstammung aus der Zucht angegeben ist.
+     *                     false: liefert nur Beobachtungen, die nicht aus der Zucht stammen.
+     * @return ein Iterator über alle nach Zucht gefilterten WildBee-Beobachtungen.
+     *
+     * @post Der Iterator enthält nur gültige Beobachtugen desselben Individuums,
+     * die dem Filterkriterium fromBreeding entsprechen.
+     *
      */
     @Override
-    public BehaviorIter<WildBee> wild(boolean fromZucht) {
-        return new BehaviorIter<>(Collections.emptyList());
+    public BehaviorIter<WildBee> wild(boolean fromBreeding) {
+        List<Bee> potentialBees = this.getSameIndividualObservations();
+        List<WildBee> matchingObservations = new ArrayList<>();
+
+        for (Bee bee : potentialBees) {
+            if (bee instanceof AndrenaBucephala otherBee) {
+                Boolean otherStatus = otherBee.fromBreeding;
+                if (otherStatus != null && otherStatus == fromBreeding) {
+                    matchingObservations.add(otherBee);
+                }
+            }
+        }
+        matchingObservations.sort(Comparator.comparing(Observation::getTimestamp));
+        return new BehaviorIter<>(matchingObservations);
     }
 
     // --- Methoden von SolitaryBee ---
 
     /**
-     * @pre true
-     * @post Liefert einen (leeren) Iterator
+     * Iterator über alle Beobachtungen des gleichen Individuums, die solitäres Verhalten zeigen.
+     *
+     * @post Gibt alle Beobachtungen des gleichen Individuums zurück, aus der eine solitäre
+     * (nicht kommunale oder soziale) Lebensweise hervorgeht.
      */
     @Override
     public BehaviorIter<SolitaryBee> solitary() {
-        return new BehaviorIter<>(Collections.emptyList());
+        List<Bee> sameIndividuals = this.getSameIndividualObservations();
+        List<SolitaryBee> solitaryObservations = new ArrayList<>();
+
+        for (Bee bee : sameIndividuals) {
+            if (bee instanceof AndrenaBucephala otherBee) {
+                if (otherBee.isSolitary) {
+                    solitaryObservations.add((SolitaryBee) bee);
+                }
+
+            }
+        }
+        solitaryObservations.sort(Comparator.comparing(Observation::getTimestamp));
+        return new BehaviorIter<>(solitaryObservations);
     }
 
     // --- Methoden von CommunalBee ---
 
     /**
+     * Gibt einen Iterator über jede Beobachtung des *gleichen Individuums* zurück,
+     * aus der eine kommunale Lebensweise dieses Individuums hervorgeht
+     *
+     * @return Ein BehaviorIter<CommunalBee> über kommunale Beobachtungen
+     * desselben Individuums.
      * @pre true
-     * @post Liefert einen (leeren) Iterator
+     * @post Liefert einen Iterator, der alle gültigen Beobachtungen desselben
+     * Individuums (this.individualIdentifier()) zurückgibt, die als
+     * CommunalBee mit kommunalem Verhalten markiert sind.
      */
     @Override
     public BehaviorIter<CommunalBee> communal() {
-        return new BehaviorIter<>(Collections.emptyList());
+        List<Bee> sameIndividuals = this.getSameIndividualObservations();
+        List<CommunalBee> communalObservations = new ArrayList<>();
+
+        for (Bee bee : sameIndividuals) {
+            if (bee instanceof AndrenaBucephala otherBee) {
+                if (otherBee.isCommunal) {
+                    communalObservations.add((CommunalBee) bee);
+                }
+
+            }
+        }
+        communalObservations.sort(Comparator.comparing(Observation::getTimestamp));
+        return new BehaviorIter<>(communalObservations);
     }
 
     /**
@@ -330,29 +493,34 @@ public class AndrenaBucephala implements CommunalBee, SolitaryBee {
      * @return Eine unsortierte Liste von Bee-Beobachtungen.
      */
     private List<Bee> getSameIndividualObservations() {
-        List<Bee> sameIndividuals = new ArrayList<>();
-        Object thisId = this.individualIdentifier();
+        List<Bee> matchingObservations = new ArrayList<>();
 
-        // Es wird angenommen, dass individualIdentifier() nie null ist,
-        // da es im Konstruktor immer initialisiert wird.
+        Object thisId = this.individualIdentifier();
+        Long thisMarkerID = this.markerID();
+
+        // thisId sollte nie null sein.
+        if (thisId == null) {
+            return matchingObservations;
+        }
 
         synchronized (ObservationData.ALL_OBSERVATIONS) {
             for (Observation obs : ObservationData.ALL_OBSERVATIONS) {
 
-                // Filterkriterien:
-                // 1. Muss gültig sein
-                // 2. Muss eine 'Bee' sein (um individualIdentifier() aufrufen zu können)
-                // 3. Muss dasselbe Individuum sein (Vergleich über .equals())
-                if (obs.valid() && obs instanceof Bee) {
-                    Bee beeObs = (Bee) obs;
-                    // Stelle sicher, dass beide IDs nicht null sind,
-                    // bevor .equals() gerufen wird
-                    if (thisId.equals(beeObs.individualIdentifier())) {
-                        sameIndividuals.add(beeObs);
-                    }
+                // Filterkriterien: Gültig und muss eine Bee sein.
+                if (!obs.valid() || !(obs instanceof Bee BeeObs)) {
+                    continue;
+                }
+                boolean sameId = thisId.equals(BeeObs.individualIdentifier());
+
+                boolean sameMarker = false;
+                if (thisMarkerID != null) {
+                    sameMarker = thisMarkerID.equals(BeeObs.markerID());
+                }
+                if (sameId || sameMarker) {
+                    matchingObservations.add(BeeObs);
                 }
             }
         }
-        return sameIndividuals;
+        return matchingObservations;
     }
 }

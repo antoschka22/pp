@@ -26,7 +26,7 @@ public class FlowerFly implements Pollinator {
      * @pre timestamp != null && comment != null
      * @post Ein neues FlowerFly-Objekt ist erstellt.
      */
-    public FlowerFly(java.time.LocalDateTime timestamp, String comment) {
+    public FlowerFly(LocalDateTime timestamp, String comment) {
         this.timestamp = timestamp;
         this.comment = comment;
         this.isValid = true;
@@ -35,17 +35,23 @@ public class FlowerFly implements Pollinator {
     }
 
     /**
+     * Gibt den Zeitstempel (Datum und Uhrzeit) der Beobachtung zurück.
+     *
+     * @return Der Zeitstempel der Beobachtung
      * @pre true
-     * @post Liefert den Zeitstempel (siehe Konstruktor)
+     * @post Liefert den Zeitstempel (LocalDateTime) der Beobachtung
      */
     @Override
-    public final java.time.LocalDateTime getTimestamp() {
+    public final LocalDateTime getTimestamp() {
         return timestamp;
     }
 
     /**
+     * Gibt den beschreibenden Kommentar zur Beobachtung zurück
+     *
+     * @return Der Kommentartext
      * @pre true
-     * @post Liefert den Kommentar (siehe Konstruktor)
+     * @post Liefert den Kommentar (String) der Beobachtung.
      */
     @Override
     public final String getComment() {
@@ -53,6 +59,10 @@ public class FlowerFly implements Pollinator {
     }
 
     /**
+     * Entfernt die Beobachtung logisch aus dem Datenbestand.
+     * Nach dem Aufruf gibt valid() false zurück.
+     * Das Objekt selbst und seine Methoden funktionieren weiterhin.
+     *
      * @pre true
      * @post this.valid() == false
      */
@@ -62,14 +72,27 @@ public class FlowerFly implements Pollinator {
     }
 
     /**
+     * Prüft, ob die Beobachtung gültig (nicht entfernt) ist.
+     *
+     * @return true, wenn remove() noch nicht aufgerufen wurde, sonst false.
      * @pre true
-     * @post Liefert true, wenn remove() nicht gerufen wurde, sonst false
+     * @post Liefert true, wenn die Beobachtung gültig ist, andernfalls false.
      */
     @Override
     public final boolean valid() {
         return isValid;
     }
 
+    /**
+     * Retourniert einen Iterator über alle Beobachtungen, die zeitlich später
+     * als diese (this) stattgefunden haben.
+     * Die Iteration erfolgt mit zeitlich näher liegenden Beobachtungen zuerst
+     *
+     * @return Ein BehaviorIter<Observation> über spätere Beobachtungen.
+     * @pre true
+     * @post Liefert einen Iterator, der alle gültigen Beobachtungen > this.getTimestamp()
+     * in aufsteigender Reihenfolge (relativ zu this) zurückgibt.
+     */
     @Override
     public BehaviorIter<Observation> later() {
         LocalDateTime thisTime = this.getTimestamp();
@@ -89,13 +112,21 @@ public class FlowerFly implements Pollinator {
             }
         }
 
-        // Sortiere: näher liegend zuerst
-        // aufsteigend nach Zeit
         laterObservations.sort(Comparator.comparing(Observation::getTimestamp));
 
         return new BehaviorIter<>(laterObservations);
     }
 
+    /**
+     * Retourniert einen Iterator über alle Beobachtungen, die zeitlich früher
+     * als diese (this) stattgefunden haben.
+     * Die Iteration erfolgt mit zeitlich näher liegenden Beobachtungen zuerst
+     *
+     * @return Ein BehaviorIter<Observation> über frühere Beobachtungen.
+     * @pre true
+     * @post Liefert einen Iterator, der alle gültigen Beobachtungen < this.getTimestamp()
+     * in absteigender Reihenfolge (relativ zu this) zurückgibt.
+     */
     @Override
     public BehaviorIter<Observation> earlier() {
         LocalDateTime thisTime = this.getTimestamp();

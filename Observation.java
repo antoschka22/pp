@@ -1,3 +1,5 @@
+import java.time.LocalDateTime;
+
 /**
  * Interface Observation: Repräsentiert eine Beobachtung im Feldforschungsprojekt
  * Dies ist der Obertyp für alle spezifischen Beobachtungstypen
@@ -16,7 +18,7 @@ public interface Observation {
      * @pre true
      * @post Liefert den Zeitstempel (LocalDateTime) der Beobachtung
      */
-    java.time.LocalDateTime getTimestamp();
+    LocalDateTime getTimestamp();
 
     /**
      * Gibt den beschreibenden Kommentar zur Beobachtung zurück
