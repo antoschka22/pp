@@ -1,55 +1,25 @@
-import java.time.LocalDateTime;
-
 /**
- * Dies ist das zentrale Interface für alle Bienenarten. Es ist zu beachten, dass jede Biene
- * sowohl eine Wasp, als auch ein Pollinator ist.
+ * Diese Klasse stellt eine allgemeine Bienenbeobachtung dar und zudem dient sie als Basisklasse
+ * für verschiedene spezielle Bienenarten wie Honeybee und Wildbee.
  */
-public interface Bee extends Wasp, Pollinator{
+public class Bee {
+
+    private final String descriptionOfObs;
 
     /**
-     * Ein internes Objekt, das alle Beobachtungen eines Individuums erkennt und gruppiert.
-     *
-     * @pre N/A
-     * @post Alle Beobachtungen derselben Biene liefern das gleiche Objekt zurück.
+     * Konstruktor, der eine neue Bee-Beobachtung mit der gegebenen Beschreibung.
+     * @param descriptionOfObs Die Beschreibung der Bienenbeobachtung.
      */
-    Object individualIdentifier();
+    public Bee(String descriptionOfObs) {
+        this.descriptionOfObs = descriptionOfObs;
+    }
 
     /**
-     * Gibt die Marker-ID zurück.
-     * Wenn das Individuum nicht markiert ist, dann ist Marker-ID null.
-     *
-     * @pre N/A
-     * @post Gibt entweder null oder eine Zahl zurück, die eindeutig das markierte Individuum repräsentiert.
+     * Gibt die Beschreibung der Bienenbeobachtung zurück.
+     * @return Der Rückgabewert ist die Beschreibung der Bienenbeobachtung.
      */
-    Long markerID();
-
-    /**
-     * Iterator über alle Beobachtungen des gleichen Individuums in aufsteigender Reihenfolge.
-     *
-     * @pre N/A
-     * @post Gibt alle Beobachtungen in zeitlich sortiert nach dem Beobachtungszeitraum des gleichen Individuums zurück.
-     */
-    BehaviorIter<Bee> sameBee();
-
-    /**
-     * Iterator über alle Beobachtungen des gleichen Individuums.
-     *
-     * @param reverseOrder true: Rückgabe erfolgt in absteigender Reihenfolge
-     *                     false: Rückgabe erfolgt in aufsteigender Reihenfolge
-     * @pre N/A
-     * @post Gibt alle Beobachtungen entsprechend reverseOrder des gleichen Individuums zurück.
-     */
-    BehaviorIter<Bee> sameBee(boolean reverseOrder);
-
-    /**
-     * Iterator über alle Beobachtungen des gleichen Individuums innerhalb eines Zeitraums, der durch LocalDateTime from
-     * und LocalDateTime to bestimmt wird.
-     *
-     * @param from der Startzeitpunkt des Beobachtungszeitraums (inklusive)
-     * @param to der Endzeitpunkt des Beobachtungszeitraums (inklusive)
-     * @pre from und to != null
-     * @post Gibt alle Beobachtungen des gleichen Individuums innerhalb eines Zeitraums zurück, der durch LocalDateTime
-     *       from und LocalDateTime to bestimmt wurde.
-     */
-    BehaviorIter<Bee> sameBee(LocalDateTime from, LocalDateTime to);
+    @Override
+    public String toString() {
+        return descriptionOfObs;
+    }
 }
