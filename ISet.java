@@ -34,8 +34,6 @@ public class ISet<E> extends AbstractOrdSet<E, Iterator<E>> {
 
     @Override
     public void setBefore(E x, E y) {
-        // Hier werden die 3 Regeln aus der Angabe geprüft.
-
         // x und y identisch?
         if (x == y) {
             throw new IllegalArgumentException("Elemente x und y dürfen nicht identisch sein.");

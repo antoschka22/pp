@@ -10,7 +10,7 @@ public interface Ordered<E, R> {
      * Prüft, ob x in der Ordnung vor y kommt.
      * @param x Das erste Element.
      * @param y Das zweite Element.
-     * @return Ein Ergebnis ungleich null, wenn x vor y kommt, sonst null[cite: 14].
+     * @return Ein Ergebnis ungleich null, wenn x vor y kommt, sonst null
      */
     R before(E x, E y);
 
@@ -18,7 +18,7 @@ public interface Ordered<E, R> {
      * Ändert die Ordnung, sodass x vor y steht.
      * @param x Das erste Element.
      * @param y Das zweite Element.
-     * @throws IllegalArgumentException wenn die Ordnung nicht hergestellt werden kann[cite: 18].
+     * @throws IllegalArgumentException wenn die Ordnung nicht hergestellt werden kann
      */
     void setBefore(E x, E y);
 }
