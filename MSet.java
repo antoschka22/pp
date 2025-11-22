@@ -1,15 +1,16 @@
 /**
- * MSet erweitert AbstractOrdSet und verwaltet Elemente, die das Interface Modifiable implementieren.
- * Die Klasse definiert die generischen Parameter für das OrdSet-Verhalten so, dass die
- * 'before'-Methode ein MSetResult zurückgibt.
+ * MSet erweitert OSet und verwaltet Elemente, die das Interface Modifiable implementieren.
+ * Es erbt die grundlegende Ordnungslogik und setBefore von OSet.
+ * Die 'before'-Methode wird überschrieben, um ein MSetResult zurückzugeben.
  *
  * @param <E> Der Typ der Einträge, muss Modifiable<X, E> sein.
  * @param <X> Der Typ des Parameters für die Modifikationen (add/subtract).
  */
-public class MSet<E extends Modifiable<X, E>, X> extends AbstractOrdSet<E, MSetResult<E>> {
+public class MSet<E extends Modifiable<X, E>, X> extends OSet<E> {
 
     /**
      * Konstruktor, der das Prüfobjekt c setzt.
+     * Ruft den Konstruktor der Oberklasse OSet auf.
      *
      * @param c Das Objekt zur Prüfung (kann null sein).
      */
@@ -20,21 +21,24 @@ public class MSet<E extends Modifiable<X, E>, X> extends AbstractOrdSet<E, MSetR
     /**
      * Gibt einen Container (MSetResult) zurück, der alle Elemente 'z' enthält,
      * für die (x -> z) und (z -> y) gilt.
+     * Überschreibt die Methode aus OSet, um den spezifischeren Rückgabetyp zu liefern.
+     *
      * @param x Das erste Element.
      * @param y Das zweite Element.
      * @return Ein MSetResult-Container oder null, wenn x nicht vor y steht.
      */
     @Override
     public MSetResult<E> before(E x, E y) {
+        // Zugriff auf protected isBefore aus AbstractOrdSet
         if (!isBefore(x, y)) {
             return null;
         }
 
         // Erstellt den Ergebnis-Container als Instanz der inneren Klasse.
-        // Wir übergeben 'this.c', damit das Resultat dieselben Prüfungen nutzt.
         ResultImpl resultSet = new ResultImpl(this.c);
 
         // 1. Elemente filtern: Alle 'z' finden, die strikt zwischen x und y liegen
+        // Zugriff auf protected elementHead aus AbstractOrdSet
         for (ElementNode current = this.elementHead; current != null; current = current.next) {
             E z = current.element;
             if (z != x && z != y && isBefore(x, z) && isBefore(z, y)) {
@@ -43,6 +47,7 @@ public class MSet<E extends Modifiable<X, E>, X> extends AbstractOrdSet<E, MSetR
         }
 
         // 2. Relationen kopieren: Nur wenn BEIDE Partner im Resultat sind
+        // Zugriff auf protected relationHead aus AbstractOrdSet
         for (RelationNode r = this.relationHead; r != null; r = r.next) {
             if (resultSet.containsElement(r.from) && resultSet.containsElement(r.to)) {
                 resultSet.addRelationIfNeeded(r.from, r.to);
@@ -52,41 +57,27 @@ public class MSet<E extends Modifiable<X, E>, X> extends AbstractOrdSet<E, MSetR
         return resultSet;
     }
 
-    /**
-     * Stellt eine Ordnungsbeziehung her.
-     * @param x Das erste Element.
-     * @param y Das zweite Element.
-     */
-    @Override
-    public void setBefore(E x, E y) {
-        if (x == y) {
-            throw new IllegalArgumentException("Elemente x und y dürfen nicht identisch sein.");
-        }
-
-        if (this.c != null && this.c.before(x, y) == null) {
-            throw new IllegalArgumentException("Ordnungsbeziehung ist durch 'c' nicht erlaubt.");
-        }
-
-        // prüft auf Zyklen (existiert bereits y -> x?)
-        if (this.isBefore(y, x)) {
-            throw new IllegalArgumentException("Ordnungsbeziehung würde einen Zyklus erstellen.");
-        }
-
-        addElementIfNeeded(x);
-        addElementIfNeeded(y);
-        addRelationIfNeeded(x, y);
-    }
+    // setBefore muss nicht mehr implementiert werden, da es von OSet geerbt wird.
 
     /**
      * Führt für jedes Element 'e' die Operation setBefore(e.add(x), e) aus.
      * @param x Der Wert für die 'add'-Operation.
      */
     public void plus(X x) {
+        // Iteriert über eine Momentaufnahme oder direkt, da setBefore die Struktur ändern könnte.
+        // Da wir über elementHead iterieren und setBefore Elemente anfügen könnte,
+        // ist es sicherer, nur über die bestehenden Elemente zu iterieren.
+        // Hier eine einfache Iteration wie im Originalcode:
         ElementNode snapshot = this.elementHead;
-        for (ElementNode current = snapshot; current != null; current = current.next) {
-            E e = current.element;
+        while (snapshot != null) {
+            E e = snapshot.element;
+            // Wir merken uns next, falls setBefore die Liste verändert (was es tut, wenn e_neu neu ist)
+            ElementNode nextNode = snapshot.next;
+
             E e_neu = e.add(x);
             this.setBefore(e_neu, e);
+
+            snapshot = nextNode;
         }
     }
 
@@ -96,10 +87,14 @@ public class MSet<E extends Modifiable<X, E>, X> extends AbstractOrdSet<E, MSetR
      */
     public void minus(X x) {
         ElementNode snapshot = this.elementHead;
-        for (ElementNode current = snapshot; current != null; current = current.next) {
-            E e = current.element;
+        while (snapshot != null) {
+            E e = snapshot.element;
+            ElementNode nextNode = snapshot.next;
+
             E e_neu = e.subtract(x);
             this.setBefore(e_neu, e);
+
+            snapshot = nextNode;
         }
     }
 
@@ -134,7 +129,6 @@ public class MSet<E extends Modifiable<X, E>, X> extends AbstractOrdSet<E, MSetR
 
         @Override
         public Boolean before(E x, E y) {
-            // Nutzt die geerbte isBefore-Logik von AbstractOrdSet (auf den lokalen Daten)
             if (this.isBefore(x, y)) {
                 return Boolean.TRUE;
             }
@@ -147,26 +141,20 @@ public class MSet<E extends Modifiable<X, E>, X> extends AbstractOrdSet<E, MSetR
                 throw new IllegalArgumentException("Elemente x und y dürfen nicht identisch sein.");
             }
 
-            // Zyklusprüfung im lokalen Subset
             if (this.isBefore(y, x)) {
                 throw new IllegalArgumentException("Ordnungsbeziehung würde einen Zyklus erstellen.");
             }
 
-            // Wenn dies fehlschlägt (z.B. Zyklus im Eltern-Set), wird dort eine Exception geworfen
-            // und hier abgebrochen, bevor wir lokal etwas ändern.
+            // Ruft setBefore auf dem umschließenden MSet auf (delegiert an OSet-Logik)
             MSet.this.setBefore(x, y);
 
-            // Wenn Eltern-Set akzeptiert hat, Relation auch lokal eintragen
             addRelationIfNeeded(x, y);
         }
 
         @Override
         public MSetResult<E> add(E e) {
-            // Erstellt eine Kopie dieses Resultats
             ResultImpl newSet = new ResultImpl(this.c);
             copyContentTo(newSet);
-
-            // Fügt das neue Element hinzu
             newSet.addElementIfNeeded(e);
             return newSet;
         }
@@ -174,14 +162,11 @@ public class MSet<E extends Modifiable<X, E>, X> extends AbstractOrdSet<E, MSetR
         @Override
         public MSetResult<E> subtract(E e) {
             ResultImpl newSet = new ResultImpl(this.c);
-
-            // Kopiert alle Elemente AUSSER 'e'
             for (ElementNode n = this.elementHead; n != null; n = n.next) {
                 if (n.element != e) {
                     newSet.addElementIfNeeded(n.element);
                 }
             }
-            // Kopiert alle Relationen, die 'e' NICHT enthalten
             for (RelationNode r = this.relationHead; r != null; r = r.next) {
                 if (r.from != e && r.to != e) {
                     newSet.addRelationIfNeeded(r.from, r.to);
@@ -190,7 +175,6 @@ public class MSet<E extends Modifiable<X, E>, X> extends AbstractOrdSet<E, MSetR
             return newSet;
         }
 
-        // Hilfsmethode zum Kopieren des Inhalts in ein neues ResultImpl
         private void copyContentTo(ResultImpl target) {
             for (ElementNode n = this.elementHead; n != null; n = n.next) {
                 target.addElementIfNeeded(n.element);
@@ -200,7 +184,6 @@ public class MSet<E extends Modifiable<X, E>, X> extends AbstractOrdSet<E, MSetR
             }
         }
 
-        // Hilfsmethode für contains
         protected boolean containsElement(E e) {
             for (ElementNode current = elementHead; current != null; current = current.next) {
                 if (current.element == e) return true;
