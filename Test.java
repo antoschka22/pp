@@ -10,29 +10,28 @@ Simon Oberdörfer
 */
 
 /*
-Begründung, warum ISet, OSet & MSet in keinen direkten Untertypbeziehungen zueinander stehen:
-- Die Klassen ISet, OSet & MSet erben alle von AbstractOrdSet<E,R>, wodurch sie automatisch das Interface OrdSet<E,R> implementieren.
-  Dadurch teilen sich diese Klassen diese grundlegende Interface-Implementierung, aber sie können nicht direkt voneinander abgeleitet werden.
-- Der Grund, warum keine direkte Untertypbeziehung zwischen den drei Klassen vorliegen kann, liegt daran, dass sich die konkreten Methodenimplementierungen
-  und Typparamter unterschiedlich sind. Die folgenden Punkte zeigen die Unterschiede der Methodenverhalten und Typparameter auf:
+Begründung der Untertypbeziehungen zwischen ISet, OSet & MSet:
+- Die Klassen ISet und OSet erben direkt von AbstractOrdSet<E,R>.
+  MSet hingegen erbt von OSet<E>. Dadurch besteht eine direkte Untertypbeziehung zwischen MSet und OSet.
+- Zwischen ISet und den anderen beiden Klassen (OSet & MSet) besteht keine direkte Untertypbeziehung.
+  Der Grund liegt hauptsächlich in den unterschiedlichen Rückgabetypen der Methoden, wie folgende Punkte zeigen:
 
-  1) Unterschiede in der before()- & setBefore()-Methode:
+  1) Unterschiede in der before()-Methode:
      * ISet: Gibt einen Iterator<E> zurück.
-     * OSet: Gibt ein 'SubSet'-Objekt zurück.
-     * MSet: Übernimmt zwar die Funktionalität von OSet, aber E muss Modifiable<X, E> sein, wodurch die zusätzlichen Operationen plus & minus erlaubt werden.
-  Diese unterschiedlichen Rückgabetypen und zusätzlichen Methoden verhindern es, das eine direkte Vererbung funktioniert.
+     * OSet: Gibt ein 'OSetResult'-Objekt (SubSet) zurück.
+     * MSet: Erbt von OSet und überschreibt die Methode, um ein 'MSetResult' zurückzugeben.
+       Dies ist erlaubt, da 'MSetResult' ein Untertyp von 'OSetResult' ist (kovarianter Rückgabetyp).
+     Die unterschiedlichen Rückgabetypen (Iterator bei ISet vs. Container bei OSet) verhindern jedoch eine direkte Vererbung zwischen ISet und OSet.
 
-  2) Unterschiede in Typparametern
-     * ISet: Hat einen Typparameter E.
-     * OSet: Hat einen Typparameter E.
-     * MSet: Der Typparameter E von MSet muss Modifiable<X, E> implementieren & MSet hat zusätzlich den Typparameter X.
-  Aufgrund der unterschiedlichen Typparamtern ist es nicht möglich, dass MSet einfach von ISet oder Oset abgeleitet werden kann.
+  2) Unterschiede in Typparametern:
+     * ISet & OSet: Haben einen Typparameter E.
+     * MSet: Der Typparameter E wird stärker eingeschränkt (muss Modifiable<X, E> sein) und der Parameter X kommt hinzu.
+       Da dies eine Spezialisierung darstellt, ist die Ableitung MSet extends OSet zulässig. Eine Ableitung von ISet ist aufgrund von Punkt 1 nicht möglich.
 
   3) Unterschiede bezüglich des Verhaltens & der Einschränkungen:
      * ISet: Iteriert lediglich über Elemente zwischen x & y.
-     * OSet: Liefert geordnete Teilmengen mit modifizierten Objekten
-     * MSet: Ändert Elemente mittels plus & minus & setzt neue Ordnungen.
-  Die direkten Untertypbeziehungen werden wegen der unterschiedlichen Anforderungen verhindert.
+     * OSet: Liefert geordnete Teilmengen.
+     * MSet: Übernimmt die Funktionalität von OSet und erweitert sie um die Methoden plus & minus, die auf den modifizierbaren Elementen operieren.
  */
 
 import java.util.Iterator;
