@@ -22,7 +22,7 @@ public class MSet<E extends Modifiable<X, E>, X> extends AbstractOrdSet<E, MSetR
      * für die (x -> z) und (z -> y) gilt.
      * @param x Das erste Element.
      * @param y Das zweite Element.
-     * @return Ein MSetResult-Container oder null.
+     * @return Ein MSetResult-Container oder null, wenn x nicht vor y steht.
      */
     @Override
     public MSetResult<E> before(E x, E y) {
@@ -30,23 +30,20 @@ public class MSet<E extends Modifiable<X, E>, X> extends AbstractOrdSet<E, MSetR
             return null;
         }
 
-        // Erstellt den Ergebnis-Container.
-        MSetResultImpl<E> resultSet = new MSetResultImpl<>(this.c);
+        // Erstellt den Ergebnis-Container als Instanz der inneren Klasse.
+        // Wir übergeben 'this.c', damit das Resultat dieselben Prüfungen nutzt.
+        ResultImpl resultSet = new ResultImpl(this.c);
 
-        // Alle Elemente 'z' finden, die strikt zwischen x und y liegen
-        // und zum resultSet hinzufügen.
+        // 1. Elemente filtern: Alle 'z' finden, die strikt zwischen x und y liegen
         for (ElementNode current = this.elementHead; current != null; current = current.next) {
             E z = current.element;
-            // z muss zwischen x und y liegen
             if (z != x && z != y && isBefore(x, z) && isBefore(z, y)) {
                 resultSet.addElementIfNeeded(z);
             }
         }
 
-        // Alle Relationen zwischen den Elementen im resultSet kopieren,
-        // damit die Ordnung erhalten bleibt.
+        // 2. Relationen kopieren: Nur wenn BEIDE Partner im Resultat sind
         for (RelationNode r = this.relationHead; r != null; r = r.next) {
-            // Prüft, ob BEIDE Enden der Relation im neuen Set enthalten sind.
             if (resultSet.containsElement(r.from) && resultSet.containsElement(r.to)) {
                 resultSet.addRelationIfNeeded(r.from, r.to);
             }
@@ -57,7 +54,6 @@ public class MSet<E extends Modifiable<X, E>, X> extends AbstractOrdSet<E, MSetR
 
     /**
      * Stellt eine Ordnungsbeziehung her.
-     * Die Logik ist identisch zu ISet.setBefore, basierend auf der Angabe
      * @param x Das erste Element.
      * @param y Das zweite Element.
      */
@@ -71,7 +67,7 @@ public class MSet<E extends Modifiable<X, E>, X> extends AbstractOrdSet<E, MSetR
             throw new IllegalArgumentException("Ordnungsbeziehung ist durch 'c' nicht erlaubt.");
         }
 
-        //prüft auf Zyklen (this.before(y, x))
+        // prüft auf Zyklen (existiert bereits y -> x?)
         if (this.isBefore(y, x)) {
             throw new IllegalArgumentException("Ordnungsbeziehung würde einen Zyklus erstellen.");
         }
@@ -86,15 +82,10 @@ public class MSet<E extends Modifiable<X, E>, X> extends AbstractOrdSet<E, MSetR
      * @param x Der Wert für die 'add'-Operation.
      */
     public void plus(X x) {
-        // Wir iterieren über eine Momentaufnahme der Elementliste,
-        // da setBefore die Liste (elementHead) potenziell ändert.
         ElementNode snapshot = this.elementHead;
-
         for (ElementNode current = snapshot; current != null; current = current.next) {
             E e = current.element;
-            // e.add(x) gibt ein NEUES Objekt zurück
             E e_neu = e.add(x);
-            // setBefore fügt e_neu hinzu (falls nötig) und setzt die Relation
             this.setBefore(e_neu, e);
         }
     }
@@ -104,23 +95,14 @@ public class MSet<E extends Modifiable<X, E>, X> extends AbstractOrdSet<E, MSetR
      * @param x Der Wert für die 'subtract'-Operation.
      */
     public void minus(X x) {
-        // Wir iterieren über eine Momentaufnahme der Elementliste,
-        // da setBefore die Liste (elementHead) potenziell ändert.
         ElementNode snapshot = this.elementHead;
-
         for (ElementNode current = snapshot; current != null; current = current.next) {
             E e = current.element;
-            // e.subtract(x) gibt ein NEUES Objekt zurück
             E e_neu = e.subtract(x);
-            // setBefore fügt e_neu hinzu (falls nötig) und setzt die Relation
             this.setBefore(e_neu, e);
         }
     }
 
-    /**
-     * Gibt eine sinnvolle textuelle Darstellung des Sets zurück
-     * @return Ein String, der Elemente und Relationen auflistet.
-     */
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder("MSet:\n");
@@ -138,5 +120,92 @@ public class MSet<E extends Modifiable<X, E>, X> extends AbstractOrdSet<E, MSetR
         }
         sb.append(" }\n");
         return sb.toString();
+    }
+
+    // =========================================================================
+    // Innere Klasse für das Ergebnis von before()
+    // =========================================================================
+
+    private class ResultImpl extends AbstractOrdSet<E, Boolean> implements MSetResult<E> {
+
+        public ResultImpl(Ordered<? super E, ?> c) {
+            super(c);
+        }
+
+        @Override
+        public Boolean before(E x, E y) {
+            // Nutzt die geerbte isBefore-Logik von AbstractOrdSet (auf den lokalen Daten)
+            if (this.isBefore(x, y)) {
+                return Boolean.TRUE;
+            }
+            return null;
+        }
+
+        @Override
+        public void setBefore(E x, E y) {
+            if (x == y) {
+                throw new IllegalArgumentException("Elemente x und y dürfen nicht identisch sein.");
+            }
+
+            // Zyklusprüfung im lokalen Subset
+            if (this.isBefore(y, x)) {
+                throw new IllegalArgumentException("Ordnungsbeziehung würde einen Zyklus erstellen.");
+            }
+
+            // Wenn dies fehlschlägt (z.B. Zyklus im Eltern-Set), wird dort eine Exception geworfen
+            // und hier abgebrochen, bevor wir lokal etwas ändern.
+            MSet.this.setBefore(x, y);
+
+            // Wenn Eltern-Set akzeptiert hat, Relation auch lokal eintragen
+            addRelationIfNeeded(x, y);
+        }
+
+        @Override
+        public MSetResult<E> add(E e) {
+            // Erstellt eine Kopie dieses Resultats
+            ResultImpl newSet = new ResultImpl(this.c);
+            copyContentTo(newSet);
+
+            // Fügt das neue Element hinzu
+            newSet.addElementIfNeeded(e);
+            return newSet;
+        }
+
+        @Override
+        public MSetResult<E> subtract(E e) {
+            ResultImpl newSet = new ResultImpl(this.c);
+
+            // Kopiert alle Elemente AUSSER 'e'
+            for (ElementNode n = this.elementHead; n != null; n = n.next) {
+                if (n.element != e) {
+                    newSet.addElementIfNeeded(n.element);
+                }
+            }
+            // Kopiert alle Relationen, die 'e' NICHT enthalten
+            for (RelationNode r = this.relationHead; r != null; r = r.next) {
+                if (r.from != e && r.to != e) {
+                    newSet.addRelationIfNeeded(r.from, r.to);
+                }
+            }
+            return newSet;
+        }
+
+        // Hilfsmethode zum Kopieren des Inhalts in ein neues ResultImpl
+        private void copyContentTo(ResultImpl target) {
+            for (ElementNode n = this.elementHead; n != null; n = n.next) {
+                target.addElementIfNeeded(n.element);
+            }
+            for (RelationNode r = this.relationHead; r != null; r = r.next) {
+                target.addRelationIfNeeded(r.from, r.to);
+            }
+        }
+
+        // Hilfsmethode für contains
+        protected boolean containsElement(E e) {
+            for (ElementNode current = elementHead; current != null; current = current.next) {
+                if (current.element == e) return true;
+            }
+            return false;
+        }
     }
 }

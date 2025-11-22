@@ -52,4 +52,23 @@ public class ISet<E> extends AbstractOrdSet<E, Iterator<E>> {
         addElementIfNeeded(y);
         addRelationIfNeeded(x, y);
     }
+
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder("ISet:\n");
+        sb.append("  Elements: { ");
+        for (ElementNode n = elementHead; n != null; n = n.next) {
+            sb.append(n.element.toString());
+            if (n.next != null) sb.append(", ");
+        }
+        sb.append(" }\n");
+
+        sb.append("  Relations: { ");
+        for (RelationNode r = relationHead; r != null; r = r.next) {
+            sb.append(r.from.toString()).append(" -> ").append(r.to.toString());
+            if (r.next != null) sb.append(", ");
+        }
+        sb.append(" }\n");
+        return sb.toString();
+    }
 }

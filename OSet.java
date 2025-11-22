@@ -5,7 +5,7 @@
  *
  * @param <E> Der Typ der Einträge.
  */
-public class OSet<E> extends AbstractOrdSet<E, OSet<E>.SubSet> {
+public class OSet<E> extends AbstractOrdSet<E, OSetResult<E>> {
 
 
     public OSet(Ordered<? super E, ?> c) {
@@ -13,7 +13,7 @@ public class OSet<E> extends AbstractOrdSet<E, OSet<E>.SubSet> {
     }
 
     @Override
-    public SubSet before(E x, E y) {
+    public OSetResult<E> before(E x, E y) {
         if (!isBefore(x, y)) {
             return null;
         }
@@ -41,15 +41,6 @@ public class OSet<E> extends AbstractOrdSet<E, OSet<E>.SubSet> {
 
     }
 
-    private boolean listContains(ElementNode head, E element) {
-        for (ElementNode current = head; current != null; current = current.next) {
-            if (current.element == element) {
-                return true;
-            }
-        }
-        return false;
-    }
-
     @Override
     public void setBefore(E x, E y) {
         // x und y identisch?
@@ -71,7 +62,35 @@ public class OSet<E> extends AbstractOrdSet<E, OSet<E>.SubSet> {
         addRelationIfNeeded(x, y);
     }
 
-    public class SubSet implements Ordered<E, Boolean>, Modifiable<E, OSet<E>.SubSet> {
+    private boolean listContains(ElementNode head, E element) {
+        for (ElementNode current = head; current != null; current = current.next) {
+            if (current.element == element) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder("OSet:\n");
+        sb.append("  Elements: { ");
+        for (ElementNode n = elementHead; n != null; n = n.next) {
+            sb.append(n.element.toString());
+            if (n.next != null) sb.append(", ");
+        }
+        sb.append(" }\n");
+
+        sb.append("  Relations: { ");
+        for (RelationNode r = relationHead; r != null; r = r.next) {
+            sb.append(r.from.toString()).append(" -> ").append(r.to.toString());
+            if (r.next != null) sb.append(", ");
+        }
+        sb.append(" }\n");
+        return sb.toString();
+    }
+
+    private class SubSet implements OSetResult<E> {
 
         private ElementNode elementHead;
         private RelationNode relationHead;
@@ -82,7 +101,7 @@ public class OSet<E> extends AbstractOrdSet<E, OSet<E>.SubSet> {
         }
 
         @Override
-        public OSet<E>.SubSet add(E e) {
+        public OSetResult<E> add(E e) {
             if (listContains(this.elementHead, e)) return this;
             // Listen kopieren
             ElementNode newElementHead = copyElements(this.elementHead);
@@ -95,7 +114,7 @@ public class OSet<E> extends AbstractOrdSet<E, OSet<E>.SubSet> {
         }
 
         @Override
-        public OSet<E>.SubSet subtract(E e) {
+        public OSetResult<E> subtract(E e) {
             // e ist nicht im Container
             if (!listContains(this.elementHead, e)) return this;
             // e wird aus beiden Listen entfernt
