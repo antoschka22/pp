@@ -75,7 +75,9 @@ public class MSet<E extends Modifiable<X, E>, X> extends OSet<E> {
             ElementNode nextNode = snapshot.next;
 
             E e_neu = e.add(x);
-            this.setBefore(e_neu, e);
+            if (e_neu != e) {
+                this.setBefore(e_neu, e);
+            }
 
             snapshot = nextNode;
         }
@@ -92,7 +94,9 @@ public class MSet<E extends Modifiable<X, E>, X> extends OSet<E> {
             ElementNode nextNode = snapshot.next;
 
             E e_neu = e.subtract(x);
-            this.setBefore(e_neu, e);
+            if (e_neu != e) {
+                this.setBefore(e_neu, e);
+            }
 
             snapshot = nextNode;
         }
