@@ -1,302 +1,191 @@
-/*
-Miriam Reumann hat das OrdSet Interface und die folgenden Klassen: Bee, WildBee und HoneyBee implementiert.
-Zudem hat sie die ersten drei Punkte für die Testfälle gemäß der Aufgabenstellung gemacht, d.h. sie hat alle
-vorgegebenen Objekte erstellt, diese mit Einträgen und Ordnungsbeziehungen befüllt, die Iterator- und Methoden-
-aufrufe typgerecht getestet und die Begründungen zu den Untertypbeziehungen dokumentiert.
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Method;
+import java.util.HashMap;
+import java.util.Map;
 
-Antonio Molina Gradischnig hat die Klassen Num, MSet mit der privaten Klasse ResultImpl, die Interfaces MSetResult und Ordered implementiert.
-Außerdem habe ich in der Testklasse die Punkte 4-6 von den Testfällen gemäß der Aufgabenstellung gemacht. Außerdem
-habe ich bei der Begründung der Untertypbeziehungen mitgeholfen.
-
-Simon Oberdörfer hat die Interfaces Modifiable und OSetResults geschrieben. Außerdem hat er die abstrakte Klasse AbstractOrdSet
-mit RelationNode und ElementNode geschrieben sowie die Klassen ISet und OSet vollständig implementiert
-(inklusive der privaten Klasse Subset).
-*/
-
-/*
-Begründung der Untertypbeziehungen zwischen ISet, OSet & MSet:
-- Die Klassen ISet und OSet erben direkt von AbstractOrdSet<E,R>.
-  MSet hingegen erbt von OSet<E>. Dadurch besteht eine direkte Untertypbeziehung zwischen MSet und OSet.
-- Zwischen ISet und den anderen beiden Klassen (OSet & MSet) besteht keine direkte Untertypbeziehung.
-  Der Grund liegt hauptsächlich in den unterschiedlichen Rückgabetypen der Methoden, wie folgende Punkte zeigen:
-
-  1) Unterschiede in der before()-Methode:
-     * ISet: Gibt einen Iterator<E> zurück.
-     * OSet: Gibt ein 'OSetResult'-Objekt (SubSet) zurück.
-     * MSet: Erbt von OSet und überschreibt die Methode, um ein 'MSetResult' zurückzugeben.
-       Dies ist erlaubt, da 'MSetResult' ein Untertyp von 'OSetResult' ist (kovarianter Rückgabetyp).
-     Die unterschiedlichen Rückgabetypen (Iterator bei ISet vs. Container bei OSet) verhindern jedoch eine direkte Vererbung zwischen ISet und OSet.
-
-  2) Unterschiede in Typparametern:
-     * ISet & OSet: Haben einen Typparameter E.
-     * MSet: Der Typparameter E wird stärker eingeschränkt (muss Modifiable<X, E> sein) und der Parameter X kommt hinzu.
-       Da dies eine Spezialisierung darstellt, ist die Ableitung MSet extends OSet zulässig. Eine Ableitung von ISet ist aufgrund von Punkt 1 nicht möglich.
-
-  3) Unterschiede bezüglich des Verhaltens & der Einschränkungen:
-     * ISet: Iteriert lediglich über Elemente zwischen x & y.
-     * OSet: Liefert geordnete Teilmengen.
-     * MSet: Übernimmt die Funktionalität von OSet und erweitert sie um die Methoden plus & minus, die auf den modifizierbaren Elementen operieren.
- */
-
-import java.util.Iterator;
-
+@ProjectClass
+@Author(name = "Miriam Reumann")
 public class Test {
-
     public static void main(String[] args) {
+        System.out.println("--- Starte Tests für Programmieraufgabe 6 ---");
+        System.out.println("Testet sowohl das Verhalten der Bienen- und Pflanzenklassen als auch die Einhaltung der Annotations- und Zusicherungsregeln...");
+        System.out.println("\n// Kontext A: Bienen-Blütenpflanzen-Simulation //");
 
-        System.out.println("--- Starte Tests für Programmieraufgabe 5 ---");
-        System.out.println("Testet die Verwendbarkeit und Funktionalität der generischen Container...");
+        // Durchführung von mehreren Simulationsläufen
+        System.out.println("Starte 1. Simulationslauf:");
+        Simulation s1 = new Simulation();
+        s1.run();
 
-        // Ein (leeres) Dummy-Objekt 'c' wird für die Konstruktoren benötigt.
-        Ordered c_null = null;
+        System.out.println("\nStarte 2. Simulationslauf:");
+        Simulation s2 = new Simulation();
+        s2.run();
 
-        try {
-            // Punkt 1: Container erstellen & mit Einträgen & Ordnungsbeziehungen befüllen //
+        System.out.println("\nStarte 3. Simulationslauf:");
+        Simulation s3 = new Simulation();
+        s3.run();
 
-            // Container erstellen
-            // Container für Num
-            ISet<Num> isetNum = new ISet<>(c_null);
-            OSet<Num> osetNum = new OSet<>(c_null);
-            MSet<Num, Num> msetNumNum = new MSet<>(c_null);
+        System.out.println("\nStarte 4. Simulationslauf:");
+        Simulation s4 = new Simulation();
+        s4.run();
 
-            // Container für Bienen
-            ISet<Bee> isetBee = new ISet<>(c_null);
-            OSet<Bee> osetBee = new OSet<>(c_null);
+        System.out.println("\n// Kontext B: Datenextraktion //");
+        extractData();
+    }
 
-            // Container für Wildbienen
-            ISet<WildBee> isetWildBee = new ISet<>(c_null);
-            OSet<WildBee> osetWildBee = new OSet<>(c_null);
-            MSet<WildBee, Integer> msetWildBeeInt = new MSet<>(c_null);
+    private static void extractData() {
+        // alle selbstgeschriebenen Klassen, Interfaces und Annotationen
+        Class<?>[] allClasses = new Class<?>[] {
+                Author.class, Pre.class, Post.class, Invariant.class, HistoryConstraint.class, ProjectClass.class,
+                Pflanze.class, PflanzeX.class, PflanzeY.class, PflanzeZ.class,
+                Biene.class, BieneU.class, BieneV.class, BieneW.class,
+                Set.class, Simulation.class
+        };
 
-            // Container für Honigbienen
-            ISet<HoneyBee> isetHoneyBee = new ISet<>(c_null);
-            OSet<HoneyBee> osetHoneyBee = new OSet<>(c_null);
-            MSet<HoneyBee, String> msetHoneyBeeString = new MSet<>(c_null);
-
-            // Objekte erzeugen
-            // Num-Objekte
-            Num n1 = new Num(4);
-            Num n2 = new Num(9);
-
-            // Bee-Objekte
-            Bee bee1 = new Bee("Biene im Garten");
-            Bee bee2 = new Bee("Biene beim Nektar sammeln");
-
-            // WildBee-Objekte
-            WildBee wb1 = new WildBee("Wildbiene auf Sonnenblume", 13);
-            WildBee wb2 = new WildBee("Wildbiene beim Pollensammeln", 8);
-
-            // HoneyBee-Objekte
-            HoneyBee hb1 = new HoneyBee("Honigbiene auf Stockwand", "Melipona");
-            HoneyBee hb2 = new HoneyBee("Honigbiene gesehen auf Wiese ", "Apis");
-
-            // Container mit Einträgen & Ordnungsbeziehungen befüllen
-            isetNum.setBefore(n1, n2);
-            osetNum.setBefore(n1, n2);
-            msetNumNum.setBefore(n1, n2);
-
-            isetBee.setBefore(bee1, bee2);
-            osetBee.setBefore(bee1, bee2);
-
-            isetWildBee.setBefore(wb1, wb2);
-            osetWildBee.setBefore(wb1, wb2);
-            msetWildBeeInt.setBefore(wb1, wb2);
-
-            isetHoneyBee.setBefore(hb1, hb2);
-            osetHoneyBee.setBefore(hb1, hb2);
-            msetHoneyBeeString.setBefore(hb1, hb2);
-
-            // Punkt 2: Ordnungsbeziehungen aus c1; c2 übertragen //
-            ISet<Bee> a1 = isetBee;
-            OSet<Bee> a2 = osetBee;
-            MSet<WildBee, Integer> b1 = msetWildBeeInt;
-            MSet<HoneyBee, String> b2 = msetHoneyBeeString;
-            OSet<WildBee> c1 = osetWildBee;
-            ISet<HoneyBee> c2 = isetHoneyBee;
-
-            // 1) aus c1 alle Einträge auslesen, length() aufrufen und mittels der before-Methode alle Ordnungen ermitteln & diese auf a1 & b1 übertragen
-           Iterator<WildBee> iter1 = c1.iterator();
-           while(iter1.hasNext()){
-                WildBee w1 = iter1.next();
-                w1.length();
-                Iterator<WildBee> iter2 = c1.iterator();
-                while(iter2.hasNext()){
-                    WildBee w2 = iter2.next();
-                    // Sicherstellen, dass nicht dasselbe Objekt verglichen wird
-                    if(!w1.equals(w2)){
-                        // prüfen, ob es eine Ordnungsbeziehung zwischen w1 & w2 gibt
-                        if(c1.before(w1, w2) != null){
-                            // Ordnungsbeziehung auf Container a1 & b1 übertragen
-                            a1.setBefore(w1, w2);
-                            b1.setBefore(w1, w2);
-                        }
-                    }
-                }
+        System.out.println("1. Namen aller Klassen, Interfaces & Annotationen:");
+        for(Class<?> c : allClasses){
+            String typeOfClass = "Klasse";
+            if(c.isInterface()){
+                typeOfClass = c.isAnnotation() ? "Annotation" : "Interface";
             }
-
-            // 2) aus c2 alle Einträge auslesen, sort() aufrufen und die Ordnungen auf a2 & b2 übertragen
-            Iterator<HoneyBee> it1 = c2.iterator();
-            while(it1.hasNext()){
-                HoneyBee h1 = it1.next();
-                h1.sort();
-                Iterator<HoneyBee> it2 = c2.iterator();
-                while(it2.hasNext()){
-                    HoneyBee h2 = it2.next();
-                    // Sicherstellen, dass nicht dasselbe Objekt verglichen wird
-                    if(!h1.equals(h2)){
-                        // prüfen, ob es eine Ordnungsbeziehung zwischen h1 & h2 gibt
-                        if(c2.before(h1, h2) != null){
-                            // Ordnungsbeziehung auf Container a2 & b2 übertragen
-                            a2.setBefore(h1, h2);
-                            b2.setBefore(h1, h2);
-                        }
-                    }
-                }
-            }
-
-            // Punkt 3: check & checkForced mit erlaubten Typen testen //
-            // OSet<Num> kann check/checkForced mit ISet<Num> und MSet<Num,Num> aufrufen
-            // OSet<Num>.check(OSet<Bee>) ist NICHT ERLAUBT, aufgrund verschiedener Typparameter!
-            osetNum.check(isetNum);
-            osetNum.check(msetNumNum);
-            osetNum.checkForced(isetNum);
-            osetNum.checkForced(msetNumNum);
-
-            // ISet<Num> kann check/checkForced mit OSet<Num> und MSet<Num,Num> aufrufen
-            isetNum.check(osetNum);
-            isetNum.check(msetNumNum);
-            isetNum.checkForced(osetNum);
-            isetNum.checkForced(msetNumNum);
-
-            // ISet<WildBee> kann check/checkForced mit MSet<WildBee, Integer> aufrufen
-            isetWildBee.check(b1);
-            isetWildBee.checkForced(b1);
-
-            // OSet<HoneyBee> kann check/checkForced mit MSet<HoneyBee, String> aufrufen
-            osetHoneyBee.check(b2);
-            osetHoneyBee.checkForced(b2);
-
-            // ------------------------------------------------------------
-            // PUNKT 4
-            // ------------------------------------------------------------
-            System.out.println("\n--- Punkt 4: Untertypbeziehungen testen ---");
-
-            // Test: MSet ist Untertyp von OSet
-            System.out.println("Test 4.1: Zuweisung MSet -> OSet Variable (Liskov Substitution)");
-            OSet<WildBee> osetRef = msetWildBeeInt;
-            // Wir fügen über die OSet Referenz etwas hinzu, das im MSet landen muss
-            WildBee wbExtra = new WildBee("Extra Biene", 10);
-            // OSet hat setBefore
-            osetRef.setBefore(wbExtra, wb1);
-            System.out.println("  Erfolg: Element via OSet-Referenz in MSet eingefügt.");
-            System.out.println("  MSet size ist nun: " + msetWildBeeInt.size());
-
-            // Begründung für fehlende Beziehungen (ISet <-> OSet) wurde im Dateikopf gegeben.
-            // Code-technisch würde ISet<WildBee> x = osetWildBee; nicht kompilieren.
-
-            // Zusicherung testen: OSetResult (Rückgabe von OSet.before) muss Modifiable sein
-            System.out.println("Test 4.2: Rückgabetyp von OSet.before ist Modifiable");
-            OSetResult<WildBee> subset = osetRef.before(wbExtra, wb2);
-            // wb1 liegt zwischen wbExtra und wb2 (da wbExtra->wb1 und wb1->wb2)
-            if (subset != null) {
-                // Modifiable Methoden testen
-                OSetResult<WildBee> subModified = subset.add(new WildBee("Neu", 5));
-                System.out.println("  Erfolg: OSetResult verhält sich wie Modifiable.");
-            } else {
-                System.out.println("  Info: Kein Subset gefunden (Ordnung evtl. anders als erwartet).");
-            }
-
-
-            // ------------------------------------------------------------
-            // PUNKT 5
-            // ------------------------------------------------------------
-            System.out.println("\n--- Punkt 5: Gesamte Funktionalität & Ausgabe ---");
-
-            // 5.1 MSet spezifische Methoden (plus / minus)
-            System.out.println("5.1 Teste MSet.plus (alle Längen um 2 erhöhen) auf WildBienen:");
-            System.out.println("  Vorher: " + msetWildBeeInt);
-            // Wir erhöhen alle Bienen-Längen um 2.
-            // Achtung: plus() ruft setBefore auf -> erstellt neue Objekte und ordnet sie vor den alten ein.
-            msetWildBeeInt.plus(2);
-            System.out.println("  Nachher: " + msetWildBeeInt);
-
-            System.out.println("5.2 Teste MSet.minus (String 'o' entfernen) auf Honigbienen:");
-            System.out.println("  Vorher: " + msetHoneyBeeString);
-            msetHoneyBeeString.minus("o");
-            System.out.println("  Nachher: " + msetHoneyBeeString);
-
-            // 5.3 ISet before (Iterator)
-            System.out.println("5.3 Teste ISet.before (Iterator Rückgabe)");
-            Iterator<HoneyBee> iterHB = isetHoneyBee.before(hb1, hb2);
-            if (iterHB != null) {
-                System.out.print("  Elemente zwischen hb1 und hb2: ");
-                boolean found = false;
-                while(iterHB.hasNext()) {
-                    System.out.print(iterHB.next() + ", ");
-                    found = true;
-                }
-                if (!found) System.out.print("Keine (direkte Kante oder leer).");
-                System.out.println();
-            }
-
-            // 5.4 Methoden der Elemente (Modifiable) explizit aufrufen und ausgeben
-            System.out.println("5.4 Element-Methoden Tests:");
-            // Num
-            Num nSum = n1.add(n2);
-            System.out.println("  Num add: " + n1 + " + " + n2 + " = " + nSum);
-            // WildBee
-            System.out.println("  WildBee Length: " + wb1.length());
-            WildBee wbGrown = wb1.add(5);
-            System.out.println("  WildBee Add(5): " + wb1 + " -> " + wbGrown + " (Len: " + wbGrown.length() + ")");
-            // HoneyBee
-            System.out.println("  HoneyBee Sort: " + hb1.sort());
-            HoneyBee hbMod = hb1.add("XL");
-            System.out.println("  HoneyBee Add('XL'): " + hbMod.sort());
-
-            // 5.5 Ausgabe aller Container (toString)
-            System.out.println("\n--- Status aller Container ---");
-            System.out.println(isetNum);
-            System.out.println(osetNum);
-            System.out.println(msetNumNum);
-            System.out.println(isetBee);
-            System.out.println(osetBee); // Enthält nun auch hb1->hb2 aus Punkt 2
-            System.out.println(isetWildBee);
-            System.out.println(osetWildBee);
-            System.out.println(msetWildBeeInt);
-            System.out.println(isetHoneyBee);
-            System.out.println(osetHoneyBee);
-            System.out.println(msetHoneyBeeString);
-
-
-            // ------------------------------------------------------------
-            // PUNKT 6 (Optional)
-            // ------------------------------------------------------------
-            System.out.println("\n--- Punkt 6: Weitere Überprüfungen (Fehlerfälle) ---");
-
-            // Test: Zyklus verhindern
-            System.out.println("Test 6.1: Zyklische Ordnung verhindern");
-            try {
-                // n1 ist vor n2. Versuche n2 vor n1 zu setzen.
-                osetNum.setBefore(n2, n1);
-                System.out.println("  FEHLER: Zyklus wurde nicht erkannt!");
-            } catch (IllegalArgumentException e) {
-                System.out.println("  Erfolg: Zyklus erkannt und verhindert (" + e.getMessage() + ")");
-            }
-
-            // Test: Selbst-Referenz
-            System.out.println("Test 6.2: Identische Elemente vergleichen");
-            try {
-                isetNum.setBefore(n1, n1);
-                System.out.println("  FEHLER: Identität nicht erkannt!");
-            } catch (IllegalArgumentException e) {
-                System.out.println("  Erfolg: Identische Elemente abgefangen (" + e.getMessage() + ")");
-            }
-
-        } catch (Exception e) {
-            System.out.println("...FEHLER!");
-            System.out.println("Ein Fehler ist aufgetreten: " + e.getMessage());
-            e.printStackTrace();
+            System.out.println(typeOfClass + ": " + c.getSimpleName());
         }
-        System.out.println("\n--- Tests beendet ---");
+
+        System.out.println("\n2. Hauptverantwortliches Gruppenmitglied:");
+        Map<String, Integer> authorOfClass = new HashMap<>();
+        for(Class<?> c : allClasses){
+            Author a = c.getAnnotation(Author.class);
+            if(a != null){
+                System.out.println("Author of " + c.getSimpleName() + " is " + a.name());
+                authorOfClass.put(a.name(), authorOfClass.getOrDefault(a.name(), 0) + 1);
+            }
+        }
+
+        System.out.println("\n3. Signaturen & Zusicherungen:");
+        Map<String, Integer> methodPerAuthor = new HashMap<>();
+        Map<String, Integer> assertionPerAuthor = new HashMap<>();
+
+        for(Class<?> c : allClasses){
+            if(c.isInterface() || !c.isAnnotation()) {
+                Author classAuthor = c.getAnnotation(Author.class);
+                String nameOfAuthor = classAuthor != null ? classAuthor.name() : "Author is unknown";
+
+                if (!c.isAnnotation()) {
+                    if (c.isInterface()) {
+                        System.out.println("Interface: " + c.getName());
+                    } else {
+                        System.out.println("Klasse: " + c.getSimpleName());
+                    }
+                }
+
+                if (!c.isAnnotation()) {
+                    // Klassenzusicherungen ausgeben
+                    Invariant[] invar = c.getAnnotationsByType(Invariant.class);
+                    for (Invariant i : invar) {
+                        System.out.println("  Invariante: " + i.condition());
+                        assertionPerAuthor.put(nameOfAuthor, assertionPerAuthor.getOrDefault(nameOfAuthor, 0) + 1);
+                    }
+
+                    HistoryConstraint[] histC = c.getAnnotationsByType(HistoryConstraint.class);
+                    for (HistoryConstraint h : histC) {
+                        System.out.println("  History-Constraint: " + h.condition());
+                        assertionPerAuthor.put(nameOfAuthor, assertionPerAuthor.getOrDefault(nameOfAuthor, 0) + 1);
+                    }
+
+                    // Geerbte Zusicherungen ausgeben
+                    printInheritedAssertions(c, assertionPerAuthor, nameOfAuthor);
+                    System.out.println();
+
+                    // Konstruktoren mit den Zusicherungen ausgeben pro Klasse
+                    if (!c.isInterface()) {
+                        Constructor<?>[] constructorOfClass = c.getConstructors();
+                        for (Constructor<?> con : constructorOfClass) {
+                            if (classAuthor != null) {
+                                methodPerAuthor.put(nameOfAuthor, methodPerAuthor.getOrDefault(nameOfAuthor, 0) + 1);
+                            }
+                            System.out.println("  Konstruktor: " + con.getName() + paramsAsString(con.getParameterTypes()));
+
+                            // Vorbedingungen von Konstruktor ausgeben
+                            Pre[] pres = con.getAnnotationsByType(Pre.class);
+                            for (Pre p : pres) {
+                                System.out.println("  -> Vorbedingung: " + p.condition());
+                                assertionPerAuthor.put(nameOfAuthor, assertionPerAuthor.getOrDefault(nameOfAuthor, 0) + 1);
+                            }
+
+                            // Nachbedingung von Konstruktor ausgeben
+                            Post[] post = con.getAnnotationsByType(Post.class);
+                            for (Post p : post) {
+                                System.out.println("  -> Nachbedingung: " + p.condition());
+                                assertionPerAuthor.put(nameOfAuthor, assertionPerAuthor.getOrDefault(nameOfAuthor, 0) + 1);
+                            }
+                        }
+                        System.out.println();
+                    }
+
+                    // Methoden mit den Zusicherungen ausgeben pro Klasse
+
+                    Method[] methods = c.getDeclaredMethods();
+                    for (Method m : methods) {
+                        if (classAuthor != null && !c.isInterface()) {
+                            methodPerAuthor.put(nameOfAuthor, methodPerAuthor.getOrDefault(nameOfAuthor, 0) + 1);
+                        }
+                        System.out.println("  Methode: " + m.getReturnType().getSimpleName() + " " + m.getName() + paramsAsString(m.getParameterTypes()));
+
+                        // Vorbedingungen von Konstruktor ausgeben
+                        Pre[] pres = m.getAnnotationsByType(Pre.class);
+                        for (Pre p : pres) {
+                            System.out.println("  -> Vorbedingung: " + p.condition());
+                            assertionPerAuthor.put(nameOfAuthor, assertionPerAuthor.getOrDefault(nameOfAuthor, 0) + 1);
+                        }
+
+                        // Nachbedingung von Konstruktor ausgeben
+                        Post[] post = m.getAnnotationsByType(Post.class);
+                        for (Post p : post) {
+                            System.out.println("  -> Nachbedingung: " + p.condition());
+                            assertionPerAuthor.put(nameOfAuthor, assertionPerAuthor.getOrDefault(nameOfAuthor, 0) + 1);
+                        }
+                        System.out.println();
+                    }
+
+                }
+            }
+        }
+        System.out.println("4. Anzahl der Klassen,Interfaces & Annotationen pro Autor:");
+        System.out.println("\n5. Anzahl der Methoden und Konstruktoren pro Autor:");
+        System.out.println("\n6. Anzahl der Zusicherungen pro Autor:");
+    }
+
+    // -------------HILFSMETHODEN-------------
+
+    private static void printInheritedAssertions(Class<?> c, Map<String, Integer> assertionPerAuthor, String author){
+        Class<?> superClass = c.getSuperclass();
+        if(superClass != null && !superClass.equals(Object.class)){
+
+            // geerbte Invarianten für die jeweilige Klasse ausgeben
+            Invariant[] superInvar = superClass.getAnnotationsByType(Invariant.class);
+            for(Invariant invar : superInvar){
+                System.out.println("      Invariante geerbt aus " + superClass.getSimpleName() + ": " + invar.condition());
+                assertionPerAuthor.put(author, assertionPerAuthor.getOrDefault(author, 0) + 1);
+            }
+
+            // geerbte History-Constraints für die jeweilige Klasse ausgeben
+            HistoryConstraint[] superHC = superClass.getAnnotationsByType(HistoryConstraint.class);
+            for(HistoryConstraint hC : superHC){
+                System.out.println("      History-Constraint geerbt aus " + superClass.getSimpleName() + ": " + hC.condition());
+                assertionPerAuthor.put(author, assertionPerAuthor.getOrDefault(author, 0) + 1);
+            }
+        }
+    }
+
+    private static String paramsAsString(Class<?>[] params){
+        if(params.length == 0) return "()";
+
+        StringBuilder sb = new StringBuilder("(");
+        for(int i = 0; i < params.length; i++){
+            sb.append(params[i].getSimpleName());
+            if(i < params.length - 1) sb.append(", ");
+        }
+        sb.append(")");
+
+        return sb.toString();
     }
 }
