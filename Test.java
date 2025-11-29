@@ -41,6 +41,11 @@ public class Test {
                 Set.class, Simulation.class
         };
 
+        // Datenstrukturen für die Statistik (Punkte 4, 5, 6)
+        Map<String, Integer> classCountPerAuthor = new HashMap<>();
+        Map<String, Integer> methodCountPerAuthor = new HashMap<>(); // Nur für Klassen
+        Map<String, Integer> assertionCountPerAuthor = new HashMap<>(); // Klassen & Interfaces
+
         System.out.println("1. Namen aller Klassen, Interfaces & Annotationen:");
         for(Class<?> c : allClasses){
             String typeOfClass = "Klasse";
@@ -51,30 +56,28 @@ public class Test {
         }
 
         System.out.println("\n2. Hauptverantwortliches Gruppenmitglied:");
-        Map<String, Integer> authorOfClass = new HashMap<>();
         for(Class<?> c : allClasses){
             Author a = c.getAnnotation(Author.class);
             if(a != null){
                 System.out.println("Author of " + c.getSimpleName() + " is " + a.name());
-                authorOfClass.put(a.name(), authorOfClass.getOrDefault(a.name(), 0) + 1);
+
+                // Für Punkt 4 sammeln
+                classCountPerAuthor.put(a.name(), classCountPerAuthor.getOrDefault(a.name(), 0) + 1);
             }
         }
 
         System.out.println("\n3. Signaturen & Zusicherungen:");
-        Map<String, Integer> methodPerAuthor = new HashMap<>();
-        Map<String, Integer> assertionPerAuthor = new HashMap<>();
-
         for(Class<?> c : allClasses){
+            // Nur Klassen und Interfaces sind hier relevant für die Detailausgabe
             if(c.isInterface() || !c.isAnnotation()) {
                 Author classAuthor = c.getAnnotation(Author.class);
-                String nameOfAuthor = classAuthor != null ? classAuthor.name() : "Author is unknown";
+                String authorName = classAuthor != null ? classAuthor.name() : "Unbekannt";
+
+                // Vorbereitung für Punkt 6
+                int assertionsInClass = 0;
 
                 if (!c.isAnnotation()) {
-                    if (c.isInterface()) {
-                        System.out.println("Interface: " + c.getName());
-                    } else {
-                        System.out.println("Klasse: " + c.getSimpleName());
-                    }
+                    System.out.println((c.isInterface() ? "Interface: " : "Klasse: ") + c.getSimpleName());
                 }
 
                 if (!c.isAnnotation()) {
@@ -82,96 +85,112 @@ public class Test {
                     Invariant[] invar = c.getAnnotationsByType(Invariant.class);
                     for (Invariant i : invar) {
                         System.out.println("  Invariante: " + i.condition());
-                        assertionPerAuthor.put(nameOfAuthor, assertionPerAuthor.getOrDefault(nameOfAuthor, 0) + 1);
+                        assertionsInClass++;
                     }
 
+                    // Klassenzusicherungen (HistoryConstraints)
                     HistoryConstraint[] histC = c.getAnnotationsByType(HistoryConstraint.class);
                     for (HistoryConstraint h : histC) {
                         System.out.println("  History-Constraint: " + h.condition());
-                        assertionPerAuthor.put(nameOfAuthor, assertionPerAuthor.getOrDefault(nameOfAuthor, 0) + 1);
+                        assertionsInClass++;
                     }
 
-                    // Geerbte Zusicherungen ausgeben
-                    printInheritedAssertions(c, assertionPerAuthor, nameOfAuthor);
-                    System.out.println();
+                    // Geerbte Zusicherungen ausgeben (Zählen nicht für den Autor der Unterklasse!)
+                    printInheritedAssertions(c);
 
-                    // Konstruktoren mit den Zusicherungen ausgeben pro Klasse
+                    // --- Konstruktoren ---
                     if (!c.isInterface()) {
-                        Constructor<?>[] constructorOfClass = c.getConstructors();
+                        // getDeclaredConstructors() findet auch nicht-public Konstruktoren
+                        Constructor<?>[] constructorOfClass = c.getDeclaredConstructors();
+
+                        // Statistik Punkt 5 (Methoden/Konstruktoren in Klassen)
+                        if (classAuthor != null) {
+                            methodCountPerAuthor.put(authorName, methodCountPerAuthor.getOrDefault(authorName, 0) + constructorOfClass.length);
+                        }
+
                         for (Constructor<?> con : constructorOfClass) {
-                            if (classAuthor != null) {
-                                methodPerAuthor.put(nameOfAuthor, methodPerAuthor.getOrDefault(nameOfAuthor, 0) + 1);
-                            }
                             System.out.println("  Konstruktor: " + con.getName() + paramsAsString(con.getParameterTypes()));
 
-                            // Vorbedingungen von Konstruktor ausgeben
+                            // Vorbedingungen
                             Pre[] pres = con.getAnnotationsByType(Pre.class);
                             for (Pre p : pres) {
                                 System.out.println("  -> Vorbedingung: " + p.condition());
-                                assertionPerAuthor.put(nameOfAuthor, assertionPerAuthor.getOrDefault(nameOfAuthor, 0) + 1);
+                                assertionsInClass++;
                             }
 
-                            // Nachbedingung von Konstruktor ausgeben
-                            Post[] post = con.getAnnotationsByType(Post.class);
-                            for (Post p : post) {
+                            // Nachbedingungen
+                            Post[] posts = con.getAnnotationsByType(Post.class);
+                            for (Post p : posts) {
                                 System.out.println("  -> Nachbedingung: " + p.condition());
-                                assertionPerAuthor.put(nameOfAuthor, assertionPerAuthor.getOrDefault(nameOfAuthor, 0) + 1);
+                                assertionsInClass++;
                             }
                         }
-                        System.out.println();
                     }
 
-                    // Methoden mit den Zusicherungen ausgeben pro Klasse
-
+                    // --- Methoden ---
+                    // getDeclaredMethods() findet alle selbst deklarierten Methoden (ohne geerbte)
                     Method[] methods = c.getDeclaredMethods();
+
+                    // Statistik Punkt 5 (Methoden in Klassen)
+                    if (classAuthor != null && !c.isInterface()) {
+                        methodCountPerAuthor.put(authorName, methodCountPerAuthor.getOrDefault(authorName, 0) + methods.length);
+                    }
+
                     for (Method m : methods) {
-                        if (classAuthor != null && !c.isInterface()) {
-                            methodPerAuthor.put(nameOfAuthor, methodPerAuthor.getOrDefault(nameOfAuthor, 0) + 1);
-                        }
                         System.out.println("  Methode: " + m.getReturnType().getSimpleName() + " " + m.getName() + paramsAsString(m.getParameterTypes()));
 
-                        // Vorbedingungen von Konstruktor ausgeben
                         Pre[] pres = m.getAnnotationsByType(Pre.class);
                         for (Pre p : pres) {
                             System.out.println("  -> Vorbedingung: " + p.condition());
-                            assertionPerAuthor.put(nameOfAuthor, assertionPerAuthor.getOrDefault(nameOfAuthor, 0) + 1);
+                            assertionsInClass++;
                         }
 
-                        // Nachbedingung von Konstruktor ausgeben
-                        Post[] post = m.getAnnotationsByType(Post.class);
-                        for (Post p : post) {
+                        Post[] posts = m.getAnnotationsByType(Post.class);
+                        for (Post p : posts) {
                             System.out.println("  -> Nachbedingung: " + p.condition());
-                            assertionPerAuthor.put(nameOfAuthor, assertionPerAuthor.getOrDefault(nameOfAuthor, 0) + 1);
+                            assertionsInClass++;
                         }
-                        System.out.println();
                     }
+                    System.out.println();
+                }
 
+                // Statistik Punkt 6 speichern (nur wenn Autor bekannt)
+                if (classAuthor != null) {
+                    assertionCountPerAuthor.put(authorName, assertionCountPerAuthor.getOrDefault(authorName, 0) + assertionsInClass);
                 }
             }
         }
-        System.out.println("4. Anzahl der Klassen,Interfaces & Annotationen pro Autor:");
-        System.out.println("\n5. Anzahl der Methoden und Konstruktoren pro Autor:");
-        System.out.println("\n6. Anzahl der Zusicherungen pro Autor:");
-    }
 
+        // --- AUSGABE DER STATISTIKEN (Punkte 4, 5, 6) ---
+
+        System.out.println("4. Anzahl der Klassen, Interfaces & Annotationen pro Autor:");
+        for (Map.Entry<String, Integer> entry : classCountPerAuthor.entrySet()) {
+            System.out.println("   " + entry.getKey() + ": " + entry.getValue());
+        }
+
+        System.out.println("\n5. Anzahl der Methoden und Konstruktoren pro Autor (nur Klassen):");
+        for (Map.Entry<String, Integer> entry : methodCountPerAuthor.entrySet()) {
+            System.out.println("   " + entry.getKey() + ": " + entry.getValue());
+        }
+
+        System.out.println("\n6. Anzahl der Zusicherungen pro Autor (Klassen & Interfaces):");
+        for (Map.Entry<String, Integer> entry : assertionCountPerAuthor.entrySet()) {
+            System.out.println("   " + entry.getKey() + ": " + entry.getValue());
+        }
+    }
     // -------------HILFSMETHODEN-------------
 
-    private static void printInheritedAssertions(Class<?> c, Map<String, Integer> assertionPerAuthor, String author){
+    private static void printInheritedAssertions(Class<?> c){
         Class<?> superClass = c.getSuperclass();
         if(superClass != null && !superClass.equals(Object.class)){
-
-            // geerbte Invarianten für die jeweilige Klasse ausgeben
             Invariant[] superInvar = superClass.getAnnotationsByType(Invariant.class);
             for(Invariant invar : superInvar){
                 System.out.println("      Invariante geerbt aus " + superClass.getSimpleName() + ": " + invar.condition());
-                assertionPerAuthor.put(author, assertionPerAuthor.getOrDefault(author, 0) + 1);
             }
 
-            // geerbte History-Constraints für die jeweilige Klasse ausgeben
             HistoryConstraint[] superHC = superClass.getAnnotationsByType(HistoryConstraint.class);
             for(HistoryConstraint hC : superHC){
                 System.out.println("      History-Constraint geerbt aus " + superClass.getSimpleName() + ": " + hC.condition());
-                assertionPerAuthor.put(author, assertionPerAuthor.getOrDefault(author, 0) + 1);
             }
         }
     }
