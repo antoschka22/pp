@@ -8,6 +8,10 @@ import java.util.ArrayList;
 @ProjectClass
 @Author(name = "Miriam Reumann")
 public class Test {
+
+    @Author(name = "Antonio Molina Gradischnig")
+    @Pre(condition = "args != null")
+    @Post(condition = "Simulationen und Tests wurden ausgeführt")
     public static void main(String[] args) {
         System.out.println("--- Starte Tests für Programmieraufgabe 6 ---");
         System.out.println("Testet sowohl das Verhalten der Bienen- und Pflanzenklassen als auch die Einhaltung der Annotations- und Zusicherungsregeln...");
@@ -34,8 +38,12 @@ public class Test {
         extractData();
     }
 
+
+    @Author(name = "Miriam Reumann")
+    @Pre(condition = "true")
+    @Post(condition = "Statistiken wurden auf der Konsole ausgegeben")
     private static void extractData() {
-        // alle selbstgeschriebenen Klassen, Interfaces und Annotationen
+        // Alle selbstgeschriebenen Klassen, Interfaces und Annotationen
         Class<?>[] mainClasses = new Class<?>[] {
                 Author.class, Pre.class, Post.class, Invariant.class, HistoryConstraint.class, ProjectClass.class,
                 Pflanze.class, PflanzeX.class, PflanzeY.class, PflanzeZ.class,
@@ -49,7 +57,7 @@ public class Test {
         for (Class<?> c : mainClasses) {
             classList.add(c); // Hauptklasse hinzufügen
 
-            // getDeclaredClasses() findet findet innere Klassen
+            // getDeclaredClasses() findet innere Klassen
             for (Class<?> inner : c.getDeclaredClasses()) {
                 classList.add(inner);
             }
@@ -75,8 +83,7 @@ public class Test {
             Author a = c.getAnnotation(Author.class);
             if(a != null){
                 System.out.println("Author of " + c.getSimpleName() + " is " + a.name());
-
-                // Für Punkt 4 sammeln
+                // Für Punkt 4 sammeln: Anzahl der Klassen/Interfaces pro Autor
                 classCountPerAuthor.put(a.name(), classCountPerAuthor.getOrDefault(a.name(), 0) + 1);
             }
         }
@@ -85,93 +92,118 @@ public class Test {
         for(Class<?> c : allClasses){
             // Nur Klassen und Interfaces sind hier relevant für die Detailausgabe
             if(c.isInterface() || !c.isAnnotation()) {
-                Author classAuthor = c.getAnnotation(Author.class);
-                String authorName = classAuthor != null ? classAuthor.name() : "Unbekannt";
-
-                // Vorbereitung für Punkt 6
-                int assertionsInClass = 0;
+                Author classAuthorAnno = c.getAnnotation(Author.class);
+                String classAuthorName = classAuthorAnno != null ? classAuthorAnno.name() : null;
 
                 if (!c.isAnnotation()) {
                     System.out.println((c.isInterface() ? "Interface: " : "Klasse: ") + c.getSimpleName());
                 }
 
                 if (!c.isAnnotation()) {
-                    // Klassenzusicherungen ausgeben
+                    // --- KLASSEN-EBENE ZUSICHERUNGEN (Invarianten / History Constraints) ---
+                    // Diese gehören immer dem Klassen-Autor
+                    int assertionsOnClassLevel = 0;
                     Invariant[] invar = c.getAnnotationsByType(Invariant.class);
                     for (Invariant i : invar) {
                         System.out.println("  Invariante: " + i.condition());
-                        assertionsInClass++;
+                        assertionsOnClassLevel++;
                     }
 
-                    // Klassenzusicherungen (HistoryConstraints)
                     HistoryConstraint[] histC = c.getAnnotationsByType(HistoryConstraint.class);
                     for (HistoryConstraint h : histC) {
                         System.out.println("  History-Constraint: " + h.condition());
-                        assertionsInClass++;
+                        assertionsOnClassLevel++;
                     }
 
-                    // Geerbte Zusicherungen ausgeben (Zählen nicht für den Autor der Unterklasse!)
+                    // Statistik Punkt 6 (Zusicherungen) für den Klassenautor eintragen
+                    if (classAuthorName != null) {
+                        assertionCountPerAuthor.put(classAuthorName, assertionCountPerAuthor.getOrDefault(classAuthorName, 0) + assertionsOnClassLevel);
+                    }
+
                     printInheritedAssertions(c);
 
-                    // --- Konstruktoren ---
+                    // --- KONSTRUKTOREN ---
                     if (!c.isInterface()) {
-                        // getDeclaredConstructors() findet auch nicht-public Konstruktoren
                         Constructor<?>[] constructorOfClass = c.getDeclaredConstructors();
-
-                        // Statistik Punkt 5 (Methoden/Konstruktoren in Klassen)
-                        if (classAuthor != null) {
-                            methodCountPerAuthor.put(authorName, methodCountPerAuthor.getOrDefault(authorName, 0) + constructorOfClass.length);
-                        }
 
                         for (Constructor<?> con : constructorOfClass) {
                             System.out.println("  Konstruktor: " + con.getName() + paramsAsString(con.getParameterTypes()));
 
-                            // Vorbedingungen
+                            // Autor bestimmen: Hat der Konstruktor eine eigene Annotation?
+                            Author conAuthorAnno = con.getAnnotation(Author.class);
+                            String effectiveAuthor = null;
+
+                            if (conAuthorAnno != null) {
+                                effectiveAuthor = conAuthorAnno.name();
+                            } else {
+                                effectiveAuthor = classAuthorName; // Fallback auf Klassenautor
+                            }
+
+                            // Statistik Punkt 5 (Methoden/Konstruktoren)
+                            if (effectiveAuthor != null) {
+                                methodCountPerAuthor.put(effectiveAuthor, methodCountPerAuthor.getOrDefault(effectiveAuthor, 0) + 1);
+                            }
+
+                            // Vor/Nachbedingungen zählen (gehören dem effektiven Autor des Konstruktors)
+                            int assertionsInCon = 0;
                             Pre[] pres = con.getAnnotationsByType(Pre.class);
                             for (Pre p : pres) {
                                 System.out.println("  -> Vorbedingung: " + p.condition());
-                                assertionsInClass++;
+                                assertionsInCon++;
                             }
-
-                            // Nachbedingungen
                             Post[] posts = con.getAnnotationsByType(Post.class);
                             for (Post p : posts) {
                                 System.out.println("  -> Nachbedingung: " + p.condition());
-                                assertionsInClass++;
+                                assertionsInCon++;
+                            }
+
+                            // Statistik Punkt 6 (Zusicherungen) für Konstruktoren
+                            if (effectiveAuthor != null) {
+                                assertionCountPerAuthor.put(effectiveAuthor, assertionCountPerAuthor.getOrDefault(effectiveAuthor, 0) + assertionsInCon);
                             }
                         }
                     }
 
-                    // --- Methoden ---
-                    // getDeclaredMethods() findet alle selbst deklarierten Methoden (ohne geerbte)
+                    // --- METHODEN ---
                     Method[] methods = c.getDeclaredMethods();
-
-                    // Statistik Punkt 5 (Methoden in Klassen)
-                    if (classAuthor != null && !c.isInterface()) {
-                        methodCountPerAuthor.put(authorName, methodCountPerAuthor.getOrDefault(authorName, 0) + methods.length);
-                    }
 
                     for (Method m : methods) {
                         System.out.println("  Methode: " + m.getReturnType().getSimpleName() + " " + m.getName() + paramsAsString(m.getParameterTypes()));
 
+                        // Autor bestimmen: Hat die Methode eine eigene Annotation?
+                        Author methodAuthorAnno = m.getAnnotation(Author.class);
+                        String effectiveAuthor = null;
+
+                        if (methodAuthorAnno != null) {
+                            effectiveAuthor = methodAuthorAnno.name();
+                        } else {
+                            effectiveAuthor = classAuthorName; // Fallback auf Klassenautor
+                        }
+
+                        // Statistik Punkt 5 (Methoden/Konstruktoren)
+                        if (effectiveAuthor != null && !c.isInterface()) {
+                            methodCountPerAuthor.put(effectiveAuthor, methodCountPerAuthor.getOrDefault(effectiveAuthor, 0) + 1);
+                        }
+
+                        // Vor/Nachbedingungen zählen (gehören dem effektiven Autor der Methode)
+                        int assertionsInMethod = 0;
                         Pre[] pres = m.getAnnotationsByType(Pre.class);
                         for (Pre p : pres) {
                             System.out.println("  -> Vorbedingung: " + p.condition());
-                            assertionsInClass++;
+                            assertionsInMethod++;
                         }
-
                         Post[] posts = m.getAnnotationsByType(Post.class);
                         for (Post p : posts) {
                             System.out.println("  -> Nachbedingung: " + p.condition());
-                            assertionsInClass++;
+                            assertionsInMethod++;
+                        }
+
+                        // Statistik Punkt 6 (Zusicherungen) für Methoden
+                        if (effectiveAuthor != null) {
+                            assertionCountPerAuthor.put(effectiveAuthor, assertionCountPerAuthor.getOrDefault(effectiveAuthor, 0) + assertionsInMethod);
                         }
                     }
                     System.out.println();
-                }
-
-                // Statistik Punkt 6 speichern (nur wenn Autor bekannt)
-                if (classAuthor != null) {
-                    assertionCountPerAuthor.put(authorName, assertionCountPerAuthor.getOrDefault(authorName, 0) + assertionsInClass);
                 }
             }
         }
@@ -198,8 +230,10 @@ public class Test {
             System.out.println("   " + entry.getKey() + ": " + entry.getValue());
         }
     }
-
     // -------------HILFSMETHODEN FÜR Grenzfälle-------------
+    @Author(name = "Antonio Molina Gradischnig")
+    @Pre(condition = "true")
+    @Post(condition = "Grenzfälle für Set und Lebensdauer wurden geprüft")
     private static void testGrenzfaelle() {
         // TESTBEREICH 1: Set - Reihenfolge und Iterator
         // Die Implementierung von Set.add nutzt new Node(obj, head)
@@ -285,8 +319,10 @@ public class Test {
         checkLebensdauerPflanze("Pflanze Z", pz, 10);
     }
 
-// --- HILFSMETHODEN FÜR LEBENSDAUER ---
-
+   // --- HILFSMETHODEN FÜR LEBENSDAUER ---
+    @Author(name = "Antonio Molina Gradischnig")
+    @Pre(condition = "b != null && maxTage > 0")
+    @Post(condition = "b.isAlive() == false")
     private static void checkLebensdauerBiene(String name, Biene b, int maxTage) {
         // 1. Altern bis kurz vor Tod
         for(int i = 0; i < maxTage; i++) {
@@ -302,6 +338,9 @@ public class Test {
         check(name + " stirbt exakt nach " + maxTage + " Tagen", istTot, true);
     }
 
+    @Author(name = "Antonio Molina Gradischnig")
+    @Pre(condition = "p != null && maxTage > 0")
+    @Post(condition = "p.isAlive() == false")
     private static void checkLebensdauerPflanze(String name, Pflanze p, int maxTage) {
         // 1. Altern bis kurz vor Tod
         for(int i = 0; i < maxTage; i++) {
@@ -316,6 +355,9 @@ public class Test {
         check(name + " verwelkt exakt nach " + maxTage + " Tagen", istTot, true);
     }
 
+    @Author(name = "Antonio Molina Gradischnig")
+    @Pre(condition = "beschreibung != null")
+    @Post(condition = "Ergebnis wurde auf Konsole ausgegeben")
     private static void check(String beschreibung, boolean ist, boolean soll) {
         if (ist == soll) {
             System.out.println("  [OK] " + beschreibung);
@@ -326,7 +368,9 @@ public class Test {
 
 
     // -------------HILFSMETHODEN FÜR STATISTIK-------------
-
+    @Author(name = "Antonio Molina Gradischnig")
+    @Pre(condition = "c != null")
+    @Post(condition = "Geerbte Zusicherungen wurden ausgegeben")
     private static void printInheritedAssertions(Class<?> c){
         Class<?> superClass = c.getSuperclass();
         if(superClass != null && !superClass.equals(Object.class)){
@@ -342,6 +386,9 @@ public class Test {
         }
     }
 
+    @Author(name = "Antonio Molina Gradischnig")
+    @Pre(condition = "params != null")
+    @Post(condition = "result.startsWith(\"(\") && result.endsWith(\")\")")
     private static String paramsAsString(Class<?>[] params){
         if(params.length == 0) return "()";
 

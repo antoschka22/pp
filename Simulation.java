@@ -23,7 +23,6 @@ public class Simulation {
     }
 
     // Biene in Bienenset hinzufügen
-    @Author(name = "Antonio Molina Gradischnig")
     @Pre(condition = "b != null")
     @Post(condition = "bieneSet.contains(b)")
     private void addBiene(Biene b) {
@@ -31,14 +30,12 @@ public class Simulation {
     }
 
     // Pflanze in Pflanzenset hinzufügen
-    @Author(name = "Antonio Molina Gradischnig")
     @Pre(condition = "p != null")
     @Post(condition = "pflanzenSet.contains(p)")
     private void addPflanze(Pflanze p) {
         pflanzenSet.add(p);
     }
 
-    @Author(name = "Antonio Molina Gradischnig")
     @Pre(condition = "day == 0")
     @Post(condition = "day >= 7 && (!areBeesActive() || !arePlantsActive())")
     public void run() {
