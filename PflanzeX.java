@@ -1,5 +1,5 @@
 @ProjectClass
-@Author(name = "Max Mustermann")
+@Author(name = "Antonio Molina Gradischnig")
 @Invariant(condition = "visitedByV() == 0") // V kann nicht auf X zurückgreifen
 public class PflanzeX extends Pflanze {
 

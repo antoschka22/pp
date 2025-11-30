@@ -1,5 +1,5 @@
 @ProjectClass
-@Author(name = "Max Mustermann")
+@Author(name = "Antonio Molina Gradischnig")
 @Invariant(condition = "visitedByU() >= 0 && visitedByV() >= 0 && visitedByW() >= 0")
 @HistoryConstraint(condition = "Die Anzahl der Besuche darf niemals abnehmen.")
 public abstract class Pflanze {

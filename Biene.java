@@ -45,45 +45,6 @@ public abstract class Biene {
     @Post(condition = "fromZ >= 0")
     public int collectedFromZ(){ return this.fromZ;}
 
-    @Pre(condition = "pflanzen != null")
-    @Post(condition = "aktiveTage == old(aktiveTage) + 1")
-    public void flyDay(Set pflanzen){
-        if(pflanzen.isEmpty()) return;
-
-        this.aktiveTage++;
-        int randomVisits = 1 + (int) (Math.random() * 5);
-
-        for(int i = 0; i < randomVisits; i++) {
-            Set pref = new Set();
-            for (int j = 0; j < pflanzen.size(); j++) {
-                Pflanze p = (Pflanze) pflanzen.get(j);
-                if (p.isAlive() && p.isPreferredBy(this)) pref.add(p);
-            }
-
-            Pflanze chosenPlant = null;
-
-            if (!pref.isEmpty()) {
-                int randIdx = (int) (Math.random() * pref.size());
-                chosenPlant = (Pflanze) pref.get(randIdx);
-            } else {
-                Set alt = new Set();
-                for(int k = 0; k < pflanzen.size(); k++) {
-                    Pflanze p = (Pflanze) pflanzen.get(k);
-                    if(p.isAlive() && p.isAlternativeFor(this)){
-                        alt.add(p);
-                    }
-                }
-                if(!alt.isEmpty()) {
-                    int randIdx = (int) (Math.random() * alt.size());
-                    chosenPlant = (Pflanze) alt.get(randIdx);
-                }
-            }
-            if(chosenPlant != null) {
-                chosenPlant.acceptVisit(this);
-            }
-        }
-    }
-
     @Pre(condition = "p != null")
     public abstract boolean prefersX(PflanzeX p);
 
@@ -103,19 +64,19 @@ public abstract class Biene {
     public abstract boolean canUseAlternativeZ(PflanzeZ p);
 
     @Pre(condition = "p != null")
-    public void visitX(PflanzeX p){
+    protected void visitX(PflanzeX p){
         incrementX();
         updatePlantCounter(p);
     }
 
     @Pre(condition = "p != null")
-    public void visitY(PflanzeY p){
+    protected void visitY(PflanzeY p){
         incrementY();
         updatePlantCounter(p);
     }
 
     @Pre(condition = "p != null")
-    public void visitZ(PflanzeZ p){
+    protected void visitZ(PflanzeZ p){
         incrementZ();
         updatePlantCounter(p);
     }

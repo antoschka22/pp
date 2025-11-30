@@ -14,7 +14,6 @@ public class Simulation {
     private static final int maxPlantDailyEntities = 5;
     private static final int maxVisits = 5;
 
-    @Author(name = "Simon Oberdörfer")
     @Post(condition = "Sets initialized && day == 0")
     public Simulation() {
         this.bienenSet = new Set();
@@ -24,7 +23,7 @@ public class Simulation {
     }
 
     // Biene in Bienenset hinzufügen
-    @Author(name = "Simon Oberdörfer")
+    @Author(name = "Antonio Molina Gradischnig")
     @Pre(condition = "b != null")
     @Post(condition = "bieneSet.contains(b)")
     private void addBiene(Biene b) {
@@ -32,17 +31,14 @@ public class Simulation {
     }
 
     // Pflanze in Pflanzenset hinzufügen
-    @Author(name = "Simon Oberdörfer")
+    @Author(name = "Antonio Molina Gradischnig")
     @Pre(condition = "p != null")
     @Post(condition = "pflanzenSet.contains(p)")
     private void addPflanze(Pflanze p) {
         pflanzenSet.add(p);
     }
 
-
-
-
-    @Author(name = "Simon Oberdörfer")
+    @Author(name = "Antonio Molina Gradischnig")
     @Pre(condition = "day == 0")
     @Post(condition = "day >= 7 && (!areBeesActive() || !arePlantsActive())")
     public void run() {
@@ -77,8 +73,6 @@ public class Simulation {
         printStatistics();
     }
 
-
-    @Author(name = "Simon Oberdörfer")
     @Pre(condition = "day <= 7")
     @Post(condition = "adds random amount of bees and plants to the sets")
     private void spawnDailyEntities() {
@@ -140,7 +134,6 @@ public class Simulation {
         }
     }
 
-    @Author(name = "Simon Oberdörfer")
     @Pre(condition = "pflanzenSet and bienenSet != null")
     private void performVisits() {
         if (pflanzenSet.isEmpty()) return;
@@ -170,7 +163,6 @@ public class Simulation {
         }
     }
 
-    @Author(name = "Simon Oberdörfer")
     @Pre(condition = "biene != null")
     @Post(condition = "returns a random plant match for a bee, either a preferred one or an alternative. If no candidate was fount, it returns null")
     private Pflanze findPlant(Biene biene, boolean preferred) {
@@ -205,8 +197,6 @@ public class Simulation {
         return null;
     }
 
-
-    @Author(name = "Simon Oberdörfer")
     @Post(condition = "all organisms aged one day")
     private void processAging() {
         // Bienen altern um einen Tag
@@ -222,7 +212,6 @@ public class Simulation {
         }
     }
 
-    @Author(name = "Simon Oberdörfer")
     @Post(condition = "returns true, if at least one bee is alive, otherwise false")
     private boolean areBeesActive() {
         for(Object obj : bienenSet){
@@ -234,7 +223,6 @@ public class Simulation {
         return false;
     }
 
-    @Author(name = "Simon Oberdörfer")
     @Post(condition = "returns true, if at least one plant is alive, otherwise false")
     private boolean arePlantsActive() {
         for (Object obj : pflanzenSet){
@@ -246,7 +234,6 @@ public class Simulation {
         return false;
     }
 
-    @Author(name = "Simon Oberdörfer")
     @Post(condition = "daily status printed to standard output")
     private void printDailyStatus() {
         int activeBees = 0;
@@ -261,7 +248,6 @@ public class Simulation {
         System.out.printf("Aktive Bienen: %d | Blühende Pflanzen: %d%n", activeBees, activePlants);
     }
 
-    @Author(name = "Simon Oberdörfer")
     @Pre(condition = "day > 0")
     @Post(condition = "statistic printed to standard output")
     private void printStatistics() {
