@@ -29,7 +29,7 @@ public class Simulation {
         bienenSet.add(b);
     }
 
-    // Pflanze in Pflanzenset hinzufüge
+    // Pflanze in Pflanzenset hinzufügen
     @Pre(condition = "p != null")
     @Post(condition = "pflanzenSet.contains(p)")
     private void addPflanze(Pflanze p) {

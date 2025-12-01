@@ -6,10 +6,10 @@ import java.util.Map;
 import java.util.ArrayList;
 
 @ProjectClass
-@Author(name = "Miriam Reumann")
+@Author(name = "Antonio Molina Gradischnig")
 public class Test {
 
-    @Author(name = "Antonio Molina Gradischnig")
+    @Author(name = "Miriam Reumann")
     @Pre(condition = "args != null")
     @Post(condition = "Simulationen und Tests wurden ausgeführt")
     public static void main(String[] args) {
@@ -34,6 +34,10 @@ public class Test {
         Simulation s4 = new Simulation();
         s4.run();
 
+        // --------------- Grenzfälle testen --------------------
+        System.out.println("\n// Kontext A: Prüfung der Grenzfälle und Logik //");
+        testGrenzfaelle();
+
         System.out.println("\n// Kontext B: Datenextraktion //");
         extractData();
     }
@@ -44,11 +48,12 @@ public class Test {
     @Post(condition = "Statistiken wurden auf der Konsole ausgegeben")
     private static void extractData() {
         // Alle selbstgeschriebenen Klassen, Interfaces und Annotationen
+        // KORREKTUR: Test.class wurde hier hinzugefügt
         Class<?>[] mainClasses = new Class<?>[] {
                 Author.class, Pre.class, Post.class, Invariant.class, HistoryConstraint.class, ProjectClass.class,
                 Pflanze.class, PflanzeX.class, PflanzeY.class, PflanzeZ.class,
                 Biene.class, BieneU.class, BieneV.class, BieneW.class,
-                Set.class, Simulation.class
+                Set.class, Simulation.class, Test.class
         };
 
         // vollständige Liste inklusive aller inneren Klassen finden
@@ -131,7 +136,7 @@ public class Test {
 
                             // Autor bestimmen: Hat der Konstruktor eine eigene Annotation?
                             Author conAuthorAnno = con.getAnnotation(Author.class);
-                            String effectiveAuthor = null;
+                            String effectiveAuthor;
 
                             if (conAuthorAnno != null) {
                                 effectiveAuthor = conAuthorAnno.name();
@@ -168,11 +173,13 @@ public class Test {
                     Method[] methods = c.getDeclaredMethods();
 
                     for (Method m : methods) {
+                        if (m.isSynthetic()) continue;
+
                         System.out.println("  Methode: " + m.getReturnType().getSimpleName() + " " + m.getName() + paramsAsString(m.getParameterTypes()));
 
                         // Autor bestimmen: Hat die Methode eine eigene Annotation?
                         Author methodAuthorAnno = m.getAnnotation(Author.class);
-                        String effectiveAuthor = null;
+                        String effectiveAuthor;
 
                         if (methodAuthorAnno != null) {
                             effectiveAuthor = methodAuthorAnno.name();
@@ -207,10 +214,6 @@ public class Test {
                 }
             }
         }
-
-        // --------------- Grenzfälle testen --------------------
-        System.out.println("\n// Kontext C: Prüfung der Grenzfälle und Logik //");
-        testGrenzfaelle();
 
 
         // --- AUSGABE DER STATISTIKEN (Punkte 4, 5, 6) ---
