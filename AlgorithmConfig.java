@@ -2,7 +2,6 @@ import java.util.Arrays;
 
 /**
  * Unveränderlicher Container mit Parametern des Bienenalgorithmus (BA).
- *
  */
 public record AlgorithmConfig(
         int a, //Anzahl der Parameter der zu untersuchenden Funktion
