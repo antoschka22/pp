@@ -10,52 +10,37 @@ public class Test {
 
     public static void main(String[] args) {
         long startTime = System.currentTimeMillis();
-
         System.out.println(">>> Start der Tests (Zeitlimit: 20s) <<<");
 
         try {
-            // Gemeinsame Parameter für die Tests (so gewählt, dass es schnell geht)
-            // Funktion f (implizit in BeeLogic): z.B. f(x) = -(x^2) (Maximum bei 0)
-            int t = 5;   // Wenige Runden für Speed
-            int b = 10;  // Kleine Blockgröße
-            int n = 100; // Scouts
-            int m = 10;  // Sites
-            int e = 4;   // Elite
-            int p = 20;  // Recruited Elite
-            int q = 10;  // Recruited Normal
+            int t = 5; int b = 10; int n = 100; int m = 10; int e = 4; int p = 20; int q = 10;
 
             // ----------------------------------------------------------------
-            // Testlauf 1: 4 Prozesse, k=1 (Ein Thread pro Prozess) [cite: 48]
-            // Wertebereich aufgeteilt auf 4 Prozesse
+            // Testlauf 1: 4 Prozesse, k=1. Funktion: Parabel (ID 0)
             // ----------------------------------------------------------------
-            System.out.println("\n=== Testlauf 1: 4 Prozesse, k=1 ===");
-            double[][] w1 = {
-                    {-100, -50}, {-50, 0}, {0, 50}, {50, 100}
-            };
+            System.out.println("\n=== Testlauf 1: 4 Prozesse, k=1, Parabel ===");
+            double[][] w1 = { {-100, -50}, {-50, 0}, {0, 50}, {50, 100} };
             int k1 = 1;
-            ExecuteBA.executeBA(w1, b, k1, t, n, m, e, p, q);
-
+            int funcId1 = 0; // Parabel
+            ExecuteBA.executeBA(w1, b, k1, t, n, m, e, p, q, funcId1);
 
             // ----------------------------------------------------------------
-            // Testlauf 2: 1 Prozess, k=6 (Sechs Threads in einem Prozess) [cite: 49]
+            // Testlauf 2: 1 Prozess, k=6. Funktion: Sinus-Mix (ID 1)
             // ----------------------------------------------------------------
-            System.out.println("\n=== Testlauf 2: 1 Prozess, k=6 ===");
-            double[][] w2 = {
-                    {-100, 100}
-            };
+            System.out.println("\n=== Testlauf 2: 1 Prozess, k=6, Sinus-Mix ===");
+            double[][] w2 = { {-100, 100} };
             int k2 = 6;
-            ExecuteBA.executeBA(w2, b, k2, t, n, m, e, p, q);
-
+            int funcId2 = 1; // Original-Funktion
+            ExecuteBA.executeBA(w2, b, k2, t, n, m, e, p, q, funcId2);
 
             // ----------------------------------------------------------------
-            // Testlauf 3: 2 Prozesse, k=3 (Gemischt) [cite: 50]
+            // Testlauf 3: 2 Prozesse, k=3. Funktion: Rastrigin (ID 2)
             // ----------------------------------------------------------------
-            System.out.println("\n=== Testlauf 3: 2 Prozesse, k=3 ===");
-            double[][] w3 = {
-                    {-100, 0}, {0, 100}
-            };
+            System.out.println("\n=== Testlauf 3: 2 Prozesse, k=3, Rastrigin ===");
+            double[][] w3 = { {-5.12, 0}, {0, 5.12} }; // Rastrigin Bereich oft [-5.12, 5.12]
             int k3 = 3;
-            ExecuteBA.executeBA(w3, b, k3, t, n, m, e, p, q);
+            int funcId3 = 2; // Rastrigin
+            ExecuteBA.executeBA(w3, b, k3, t, n, m, e, p, q, funcId3);
 
 
         } catch (Exception ex) {
@@ -65,8 +50,5 @@ public class Test {
 
         long duration = System.currentTimeMillis() - startTime;
         System.out.println("\n>>> Alle Tests beendet in " + duration + " ms <<<");
-        if (duration > 20000) {
-            System.err.println("ACHTUNG: Zeitlimit von 20s überschritten!");
-        }
     }
 }
