@@ -1,5 +1,9 @@
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
 
 /**
  * Diese Klasse führt einen Teil des Bienenalgorithmus in einem eigenen JVM-Prozess aus.
@@ -12,7 +16,7 @@ public class Worker {
     private static int finishedThreads = 0;
     private static final Object barrierLock = new Object();
 
-    // Globale Parameter (für Zugriff durch BeeLogic/BlockManager)
+    // Globale Parameter (public für Zugriff durch andere Klassen im Package)
     public static double wStart, wEnd;
     public static int b, k, t, n, m, e, p, q;
 
@@ -26,14 +30,14 @@ public class Worker {
             return;
         }
 
-        // Parsing mit Strichpunkt (passend zu ExecuteBA)
+        // Parsing
         try {
             String[] params = lineOfParams.split(";");
             wStart = Double.parseDouble(params[0]);
             wEnd   = Double.parseDouble(params[1]);
-            b      = Integer.parseInt(params[2]); // Bienen pro Block
-            k      = Integer.parseInt(params[3]); // Threads
-            t      = Integer.parseInt(params[4]); // Runden
+            b      = Integer.parseInt(params[2]);
+            k      = Integer.parseInt(params[3]);
+            t      = Integer.parseInt(params[4]);
             n      = Integer.parseInt(params[5]);
             m      = Integer.parseInt(params[6]);
             e      = Integer.parseInt(params[7]);
@@ -44,8 +48,7 @@ public class Worker {
             return;
         }
 
-        // Initialisierung der Blöcke VOR dem Start der Threads
-        // Wir übergeben den Wertebereich (wStart, wEnd) und die Anzahl (n)
+        // Initialisierung (Runde 0: n Scouts zufällig verteilen)
         BlockManager.init(wStart, wEnd, b, n);
 
         // 2. Worker-Threads erstellen & starten
@@ -54,94 +57,141 @@ public class Worker {
             workers[i] = new Thread(() -> {
                 try {
                     for (int j = 0; j < t; j++) {
-                        // Abarbeitung der Blöcke in dieser Runde
+                        // Abarbeitung der Blöcke
                         processBlocksOfRound();
 
-                        // Warten an der Barriere bis alle Threads fertig sind
+                        // Barriere
                         synchronized (barrierLock) {
                             finishedThreads++;
-                            // Wenn dies der letzte Thread ist, wecke den Main-Thread (Koordinator)
                             if (finishedThreads == k) {
-                                barrierLock.notifyAll();
+                                barrierLock.notifyAll(); // Weckt den Main-Thread
                             }
 
-                            // Warten, bis der Main-Thread die nächste Runde freigibt (currRound erhöht)
+                            // Warten auf Start der nächsten Runde
                             int activeRound = j;
-                            while (currRound <= activeRound && j < t - 1) { // j < t-1 verhindert Warten nach der allerletzten Runde
+                            while (currRound <= activeRound && j < t - 1) {
                                 barrierLock.wait();
                             }
                         }
                     }
-                } catch (InterruptedException e) {
+                } catch (InterruptedException ex) {
                     Thread.currentThread().interrupt();
                 }
             });
             workers[i].start();
         }
 
-        // 3. Koordinierung der Runden (Main Thread agiert als Koordinator)
+        // 3. Koordinator (Main Thread)
+        // Läuft t Runden lang
+        // Das beste globale Ergebnis über alle Runden speichern wir hier
+        double globalBestFitness = -Double.MAX_VALUE;
+        double globalBestPos = 0.0;
+
         for (int round = 0; round < t; round++) {
-            // Warten, bis alle k Threads ihre Arbeit für diese Runde beendet haben
+            // Warten bis alle Threads fertig sind
             synchronized (barrierLock) {
                 while (finishedThreads < k) {
                     barrierLock.wait();
                 }
             }
 
-            // --- SEQUENTIELLE PHASE ---
-            // Wenn wir nicht in der allerletzten Runde sind, müssen wir rekrutieren.
-            if (round < t - 1) {
-                // TODO (Person B): Rekrutierungs-Logik aufrufen
-                // List<Results> bestResults = BlockManager.getBestResults();
-                // BlockManager.createNewBlocks(bestResults, m, e, p, q, ...);
+            // --- SEQUENTIELLE PHASE (Rekrutierung) ---
+            // 1. Ergebnisse holen
+            List<BeeBlock> results = BlockManager.getFinishedBlocks();
+
+            // Globales Optimum aktualisieren (nur für Ausgabe am Ende)
+            for (BeeBlock blk : results) {
+                if (blk.bestFitness > globalBestFitness) {
+                    globalBestFitness = blk.bestFitness;
+                    globalBestPos = blk.bestPosition;
+                }
             }
 
-            // Reset für nächste Runde
+            // Wenn wir noch nicht in der letzten Runde sind, neue Blöcke bauen
+            if (round < t - 1) {
+                // Sortieren: Bestes Ergebnis zuerst (absteigend)
+                results.sort((o1, o2) -> Double.compare(o2.bestFitness, o1.bestFitness));
+
+                List<BeeBlock> newBlocks = new ArrayList<>();
+
+                // Neighborhood Size: Wie weit suchen die rekrutierten Bienen um den Punkt herum?
+                // Heuristik: 1/10 des Suchraums, wird pro Runde kleiner (optional)
+                double neighborhood = (wEnd - wStart) / (10.0 + round);
+
+                // Die m besten Felder auswählen
+                int sitesToVisit = Math.min(results.size(), m);
+
+                for (int i = 0; i < sitesToVisit; i++) {
+                    BeeBlock bestBlock = results.get(i);
+
+                    // Ist es ein Elite-Feld? (die ersten e)
+                    int beesToSend = (i < e) ? p : q;
+
+                    // Neuer Suchbereich um das gefundene Maximum herum
+                    // Achtung: Grenzen des Prozesses (wStart/wEnd) einhalten!
+                    double center = bestBlock.bestPosition;
+                    double start = Math.max(wStart, center - (neighborhood / 2.0));
+                    double end   = Math.min(wEnd, center + (neighborhood / 2.0));
+
+                    // Neuen Block erstellen
+                    // Hinweis: Wenn p oder q sehr groß sind, könnte man das auf mehrere Blöcke
+                    // aufteilen (je b Bienen), aber laut Angabe reicht ein Block mit 'beesToSend'.
+                    // Wir müssen sicherstellen, dass beesToSend ein Vielfaches von b ist oder
+                    // wir teilen es in (beesToSend / b) Blöcke auf.
+                    // Der Einfachheit halber (und laut PDF Text: "b Bienen ... zu einem Block")
+                    // erstellen wir hier mehrere Blöcke der Größe b, bis beesToSend erreicht ist.
+
+                    int blocksToCreate = beesToSend / b;
+                    if (blocksToCreate < 1) blocksToCreate = 1;
+
+                    for (int x = 0; x < blocksToCreate; x++) {
+                        newBlocks.add(new BeeBlock(start, end, b));
+                    }
+                }
+
+                // Optional: Zufällige Scouts für den Rest (Global Search),
+                // um nicht in lokalen Optima stecken zu bleiben (n - m Bienen).
+                // Die Angabe fordert das nicht explizit in der Rekrutierungsphase,
+                // aber es gehört zum Bees Algorithm. Wir fügen ein paar hinzu:
+                int randomScouts = n - (sitesToVisit); // Einfache Heuristik
+                if (randomScouts > 0) {
+                    int blocks = (randomScouts / b);
+                    for(int x=0; x<blocks; x++) {
+                        newBlocks.add(new BeeBlock(wStart, wEnd, b));
+                    }
+                }
+
+                // BlockManager resetten und füllen
+                BlockManager.clearFinished();
+                BlockManager.addBlocks(newBlocks);
+            }
+
+            // Reset für nächste Runde & Threads aufwecken
             synchronized (barrierLock) {
                 finishedThreads = 0;
-                currRound++;       // Runde hochzählen
-                barrierLock.notifyAll(); // Alle Worker-Threads aufwecken
+                currRound++;
+                barrierLock.notifyAll();
             }
         }
 
-        // Sicherstellen, dass alle Threads sauber beendet sind
+        // Auf Threads warten
         for (Thread thread : workers) {
             thread.join();
         }
 
         // 4. Ergebnis zurücksenden
-        // TODO (Person B): Bestes globales Ergebnis aus dem BlockManager holen
-        double bestResult = 0.0; // Platzhalter
-        System.out.println("Ergebnis Bereich [" + wStart + " - " + wEnd + "]: " + bestResult);
+        System.out.println(globalBestPos + " -> Fitness: " + globalBestFitness);
     }
 
-    /**
-     * Diese Methode wird von jedem Worker-Thread in jeder Runde aufgerufen.
-     * Sie holt sich so lange Arbeitspakete (Blöcke), bis keine mehr da sind.
-     */
     private static void processBlocksOfRound() {
         while (true) {
-            // 1. Thread-sicher den nächsten Block holen (kritischer Abschnitt im BlockManager)
-            // Hinweis: BlockManager muss importiert oder im selben Package sein.
             BeeBlock block = BlockManager.getNextBlock();
-
-            // 2. Prüfen, ob Arbeit da war
             if (block == null) {
-                // Keine Blöcke mehr in der Queue -> Thread ist fertig mit dieser Runde
                 return;
             }
+            // Echte Logik aufrufen
+            BeeLogic.processBlock(block);
 
-            // 3. Die eigentliche Arbeit verrichten (Logik von Person B)
-            // Hier wird die Berechnung ausgeführt.
-            // WICHTIG: Falls BeeLogic noch nicht existiert, hier den Code direkt einfügen oder Dummy nutzen.
-            // Beispielaufruf:
-            try {
-                BeeLogic.processBlock(block);
-            } catch (Exception e) {
-                System.err.println("Fehler bei der Blockverarbeitung: " + e.getMessage());
-            }
-
-            // 4. Den fertigen Block zurückmelden (für die Rekrutierung in der nächsten Runde)
             BlockManager.reportFinishedBlock(block);
         }
     }
