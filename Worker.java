@@ -1,36 +1,22 @@
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
 
-/**
- * Diese Klasse führt einen Teil des Bienenalgorithmus in einem eigenen JVM-Prozess aus.
- * Sie verwaltet die Threads und die Runden-Synchronisation.
- */
 public class Worker {
 
-    // Synchronisations-Variablen
-    private static int currRound = 0;
-    private static int finishedThreads = 0;
-    private static final Object barrierLock = new Object();
-
-    // Globale Parameter (public für Zugriff durch andere Klassen im Package)
+    // Globale Parameter (public static für einfachen Zugriff)
     public static double wStart, wEnd;
-    // Globale Parameter
     public static int b, k, t, n, m, e, p, q;
-    public static int functionId; // NEU: ID der Funktion
+    public static int functionId;
 
-    public static void main(String[] args) throws Exception {
-        BufferedReader bR = new BufferedReader(new InputStreamReader(System.in));
-
-        // 1. BA-Parameter einlesen
-        String lineOfParams = bR.readLine();
-        if (lineOfParams == null) return;
-
-        // Parsing
+    public static void main(String[] args) {
         try {
+            BufferedReader bR = new BufferedReader(new InputStreamReader(System.in));
+            String lineOfParams = bR.readLine();
+            if (lineOfParams == null) return;
+
+            // Parameter parsen (Peinlich genau auf Trennzeichen achten!)
             String[] params = lineOfParams.split(";");
             wStart = Double.parseDouble(params[0]);
             wEnd = Double.parseDouble(params[1]);
@@ -42,24 +28,67 @@ public class Worker {
             e = Integer.parseInt(params[7]);
             p = Integer.parseInt(params[8]);
             q = Integer.parseInt(params[9]);
-            // NEU: Einlesen der functionId an Index 10
             functionId = Integer.parseInt(params[10]);
-        } catch (Exception ex) {
-            System.err.println("Worker: Fehler Parameter: " + ex.getMessage());
-            return;
-        }
 
-    }
-    private static void processBlocksOfRound() {
-        while (true) {
-            BeeBlock block = BlockManager.getNextBlock();
-            if (block == null) {
-                return;
+            // 1. Initialisierung (Scouts)
+            List<BeeBlock> initialBlocks = new ArrayList<>();
+            int numScoutBlocks = n / b;
+            double step = (wEnd - wStart) / numScoutBlocks;
+            for (int i = 0; i < numScoutBlocks; i++) {
+                double s = wStart + i * step;
+                initialBlocks.add(new BeeBlock(s, s + step, b));
             }
-            // Echte Logik aufrufen
-            BeeLogic.processBlock(block);
 
-            BlockManager.reportFinishedBlock(block);
+            // BlockManager füllen
+            BlockManager.addBlocks(initialBlocks);
+
+            // 2. Threads erzeugen und starten
+            BeeThread[] threads = new BeeThread[k];
+            for (int i = 0; i < k; i++) {
+                threads[i] = new BeeThread(i);
+                threads[i].start();
+            }
+
+            // Variable für das beste globale Ergebnis
+            double bestGlobalFitness = -Double.MAX_VALUE;
+            double bestGlobalPos = 0.0;
+
+            // 3. Schleife über t Iterationen
+            for (int round = 0; round < t; round++) {
+                // Warten bis alle Threads die aktuelle Runde fertig haben (Barriere)
+                BlockManager.waitForRoundCompletion();
+
+                // Ergebnisse holen
+                List<BeeBlock> results = BlockManager.getFinishedBlocks();
+
+                // Bestes Ergebnis dieser Runde finden
+                for (BeeBlock blk : results) {
+                    if (blk.bestFitness > bestGlobalFitness) {
+                        bestGlobalFitness = blk.bestFitness;
+                        bestGlobalPos = blk.bestPosition;
+                    }
+                }
+
+                // Falls nicht die letzte Runde: Rekrutierung
+                if (round < t - 1) {
+                    List<BeeBlock> newBlocks = BeeLogic.recruit(results, n, m, e, p, q, b);
+                    BlockManager.addBlocks(newBlocks); // Startet die Threads implizit wieder (notifyAll)
+                }
+            }
+
+            // 4. Threads sauber beenden
+            BlockManager.stopThreads();
+            for (BeeThread th : threads) {
+                th.join();
+            }
+
+            // 5. Ergebnis ausgeben (Format: Fitness;Position)
+            System.out.println(bestGlobalFitness + ";" + bestGlobalPos);
+
+        } catch (Exception ex) {
+            // Fehler in System.err schreiben, damit ExecuteBA es via getErrorStream lesen kann
+            System.err.println("CRASH in Worker: " + ex.getMessage());
+            ex.printStackTrace();
         }
     }
 }
