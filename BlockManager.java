@@ -3,40 +3,62 @@ import java.util.List;
 import java.util.Queue;
 
 /**
- * Verwaltet die Aufgabenblöcke und die Synchronisation zwischen Worker (Main) und BeeThreads.
- * Implementiert die Barriere mit wait() und notifyAll().
+ * Zentraler Monitor für die Thread-Synchronisation innerhalb eines Prozesses.
+ * <p>
+ * Diese Klasse fungiert als Schnittstelle zwischen dem sequenziellen Main-Thread (Worker)
+ * und den parallelen BeeThreads. Sie implementiert zwei wesentliche Konzepte der Nebenläufigkeit:
+ * 1. Producer-Consumer: Der Main-Thread produziert Blöcke, BeeThreads konsumieren sie.
+ * 2. Barriere: Der Main-Thread wartet, bis alle Blöcke einer Runde verarbeitet wurden.
+ * <p>
+ * Alle Methoden sind 'synchronized', um Race Conditions auf dem gemeinsamen Zustand
+ * (WorkQueue, Zähler) zu verhindern.
  */
 public class BlockManager {
 
+    // Gemeinsam genutzte Ressourcen (Shared Mutable State)
+    // Die Queue dient als Puffer zwischen Produzent und Konsumenten.
     private static final Queue<BeeBlock> workQueue = new LinkedList<>();
+
+    // Sammelstelle für Ergebnisse, auf die threadsicher zugegriffen werden muss.
     private static final List<BeeBlock> finishedBlocks = new LinkedList<>();
 
-    // Synchronisations-Zustände
+    // Synchronisations-Zustände für die Barriere
     private static int totalBlocksInRound = 0;
     private static int processedBlocksInRound = 0;
+
+    // Flag für das kontrollierte Beenden (Graceful Shutdown) der Threads
     private static boolean isShutdown = false;
 
     /**
-     * Wird vom Worker aufgerufen, um neue Blöcke für eine Runde bereitzustellen.
+     * Produzenten-Methode: Stellt neue Arbeit für die Threads bereit.
+     * <p>
+     * Wird vom Main-Thread (Worker) zu Beginn einer Runde aufgerufen.
+     * Setzt die Barriere-Zähler zurück und weckt wartende Threads auf.
      */
     public static synchronized void addBlocks(List<BeeBlock> newBlocks) {
         workQueue.addAll(newBlocks);
         totalBlocksInRound = newBlocks.size();
         processedBlocksInRound = 0; // Reset für die neue Runde
-        finishedBlocks.clear();     // Alte Ergebnisse verwerfen (wurden schon verarbeitet)
+        finishedBlocks.clear();     // Alte Ergebnisse verwerfen
 
-        // Alle wartenden Threads aufwecken, da es neue Arbeit gibt
+        // WICHTIG: notifyAll() weckt alle BeeThreads auf, die in getNextBlock()
+        // im wait()-Zustand schlafen, da die Queue leer war.
         BlockManager.class.notifyAll();
     }
 
     /**
-     * Threads rufen dies auf, um Arbeit zu holen.
-     * WARTET, wenn Queue leer ist, aber das Programm noch nicht beendet ist.
+     * Konsumenten-Methode: Threads holen sich hier Arbeit (Pull-Prinzip).
+     * <p>
+     * Implementiert das "Guarded Block" Muster:
+     * Solange keine Arbeit da ist, wird gewartet (wait), um CPU-Zyklen zu sparen (kein Busy-Waiting).
+     * * @return Der nächste zu bearbeitende Block oder null, wenn der Thread enden soll.
      */
     public static synchronized BeeBlock getNextBlock() {
+        // While-Schleife ist zwingend nötig wegen "Spurious Wakeups"
+        // (Threads können ohne Grund aufwachen) und um die Bedingung erneut zu prüfen.
         while (workQueue.isEmpty() && !isShutdown) {
             try {
-                // Warten, bis der Main-Thread neue Blöcke nachlegt oder shutdown signalisiert
+                // Thread legt sich schlafen und gibt den Monitor (Lock) frei.
                 BlockManager.class.wait();
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
@@ -44,7 +66,7 @@ public class BlockManager {
             }
         }
 
-        // Wenn wir aufgewacht sind und shutdown ist true (und queue leer), dann null zurückgeben -> Thread beendet sich
+        // Beendigungsbedingung: Wenn Shutdown signalisiert wurde UND keine Arbeit mehr da ist.
         if (isShutdown && workQueue.isEmpty()) {
             return null;
         }
@@ -53,21 +75,27 @@ public class BlockManager {
     }
 
     /**
-     * Wird vom Thread aufgerufen, wenn ein Block fertig berechnet ist.
+     * Meldet ein Teilergebnis zurück und prüft die Barriere-Bedingung.
+     * <p>
+     * Wird von BeeThreads am Ende ihrer Berechnung aufgerufen.
      */
     public static synchronized void reportFinishedBlock(BeeBlock block) {
         finishedBlocks.add(block);
         processedBlocksInRound++;
 
-        // Prüfen, ob die Runde komplett fertig ist
+        // Barriere-Check:
+        // Wenn der letzte Block der Runde verarbeitet wurde, wecken wir den Main-Thread auf.
         if (processedBlocksInRound == totalBlocksInRound) {
-            // Worker-Thread (Main) aufwecken, der in waitForRoundCompletion wartet
+            // Weckt den Worker-Main-Thread, der in waitForRoundCompletion() blockiert.
             BlockManager.class.notifyAll();
         }
     }
 
     /**
-     * Der Main-Worker ruft dies auf, um zu warten, bis alle Threads fertig sind (Barriere).
+     * Implementierung der Barriere für den Main-Thread.
+     * <p>
+     * Der Main-Thread blockiert hier, solange die parallele Verarbeitung noch läuft.
+     * Dies stellt sicher, dass die Rekrutierungsphase erst startet, wenn alle Ergebnisse vorliegen.
      */
     public static synchronized void waitForRoundCompletion() throws InterruptedException {
         while (processedBlocksInRound < totalBlocksInRound) {
@@ -76,17 +104,18 @@ public class BlockManager {
     }
 
     /**
-     * Gibt die Ergebnisse der aktuellen Runde zurück (für BeeLogic).
+     * Gibt eine Kopie der Ergebnisse zurück (Thread-Safety für den Zugriff im Main-Thread).
      */
     public static synchronized List<BeeBlock> getFinishedBlocks() {
         return new LinkedList<>(finishedBlocks);
     }
 
     /**
-     * Signalisierte allen Threads, dass sie sich beenden sollen.
+     * Signalisiert allen Threads, dass keine neue Arbeit mehr kommt und sie sich beenden sollen.
      */
     public static synchronized void stopThreads() {
         isShutdown = true;
-        BlockManager.class.notifyAll(); // Alle aufwecken, damit sie merken "isShutdown == true"
+        // Weckt alle Threads auf, damit sie das isShutdown-Flag prüfen und terminieren können.
+        BlockManager.class.notifyAll();
     }
 }

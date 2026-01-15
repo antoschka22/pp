@@ -3,27 +3,45 @@ import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Repräsentiert einen eigenständigen Worker-Prozess (JVM).
+ * <p>
+ * PARADIGMA-KONTEXT:
+ * Im SPMD-Modell (Single Program, Multiple Data) ist dies der Knoten, der einen
+ * Teilbereich des Suchraums bearbeitet.
+ * <p>
+ * Diese Klasse fungiert als **lokaler Koordinator**:
+ * 1. IPC-Schnittstelle: Empfängt Konfiguration vom Master-Prozess (`ExecuteBA`) via Stdin.
+ * 2. Thread-Management: Startet und verwaltet den Pool an `BeeThread`s.
+ * 3. Phasen-Steuerung: Synchronisiert den Wechsel zwischen paralleler Suche (Threads)
+ * und sequenzieller Rekrutierung (Main-Thread) mittels einer Barriere.
+ */
 public class Worker {
 
-    // Globale Parameter (public static für einfachen Zugriff aus BeeLogic)
+    // Globale Parameter (Shared Memory innerhalb dieses Prozesses).
+    // public static erlaubt den effizienten Zugriff durch BeeLogic/BeeThread ohne
+    // ständiges Herumreichen von Objekten.
     public static double wStart, wEnd;
     public static int b, k, t, n, m, e, p, q;
     public static int functionId;
 
     public static void main(String[] args) {
-        // Variable für das beste globale Ergebnis
+        // Lokaler Bestwert dieses Prozesses
         double bestGlobalFitness = -Double.MAX_VALUE;
         double bestGlobalPos = 0.0;
 
-        // Thread-Array hier deklarieren, damit wir im finally-Block darauf zugreifen könnten (optional)
         BeeThread[] threads = null;
 
         try {
+            // =============================================================
+            // 1. IPC (Input Phase): Parameter lesen
+            // =============================================================
+            // Wir lesen die Konfiguration, die ExecuteBA in unsere Pipe (System.in) schreibt.
             BufferedReader bR = new BufferedReader(new InputStreamReader(System.in));
             String lineOfParams = bR.readLine();
             if (lineOfParams == null) return;
 
-            // --- 4. Exception Handling: Robustes Parsing ---
+            // Robustes Parsing der CSV-Daten
             try {
                 String[] params = lineOfParams.split(";");
                 wStart = Double.parseDouble(params[0]);
@@ -39,40 +57,46 @@ public class Worker {
                 functionId = Integer.parseInt(params[10]);
             } catch (Exception parseEx) {
                 System.err.println("Worker Parameter Error: " + parseEx.getClass().getSimpleName() + " - " + parseEx.getMessage());
-                return; // Abbruch, da ohne Parameter kein Start möglich
+                return;
             }
 
-            // --- Initialisierung ---
-            // 1. Initiale Blöcke (Scouts) erstellen
+            // =============================================================
+            // 2. Initialisierung (Bootstrap Phase)
+            // =============================================================
+
+            // Erzeugen der initialen Scouts (Gleichverteilung im Suchraum).
+            // Dies ist der erste "Job", den die Worker erledigen müssen.
             List<BeeBlock> initialBlocks = new ArrayList<>();
-            // Falls n < b, mindestens einen Block erzeugen, um Division durch Null/Leere Listen zu vermeiden
             int numScoutBlocks = Math.max(1, n / b);
             double step = (wEnd - wStart) / numScoutBlocks;
 
             for (int i = 0; i < numScoutBlocks; i++) {
                 double s = wStart + i * step;
                 double end = s + step;
-                if (end > wEnd) end = wEnd; // Floating Point Korrektur
+                if (end > wEnd) end = wEnd; // Korrektur für Fließkomma-Ungenauigkeiten
                 initialBlocks.add(new BeeBlock(s, end, b));
             }
 
-            // BlockManager füllen
+            // Füllen des Monitors (Producer-Schritt)
             BlockManager.addBlocks(initialBlocks);
 
-            // 2. Threads erzeugen und starten
+            // Starten des Thread-Pools.
+            // Die Threads laufen sofort los und bedienen sich an der Queue (Pull-Prinzip).
             threads = new BeeThread[k];
             for (int i = 0; i < k; i++) {
                 threads[i] = new BeeThread(i);
                 threads[i].start();
             }
 
-            // --- 1. Der t=0 Fix (Logik-Umbau) ---
+            // =============================================================
+            // 3. Hauptschleife (Phasen-Synchronisation)
+            // =============================================================
 
-            // Schritt A: Initiale Auswertung (MUSS immer passieren, auch bei t=0)
-            // Wir warten, bis die Scouts fertig sind.
+            // SCHRITT A: Warten auf Abschluss der Initial-Runde (Barriere).
+            // Der Main-Thread blockiert hier, solange die Worker-Threads rechnen.
             BlockManager.waitForRoundCompletion();
 
-            // Ergebnisse der Initialisierung holen
+            // Ergebnisse einsammeln (Thread-Safe Zugriff via Monitor)
             List<BeeBlock> results = BlockManager.getFinishedBlocks();
 
             // Bestwert aktualisieren
@@ -83,23 +107,28 @@ public class Worker {
                 }
             }
 
-            // Schritt B: Schleife für Rekrutierungs-Runden (t-1 mal, falls t > 0)
-            // Wenn t=1 ist, haben wir Schritt A gemacht (1 Runde), loop läuft nicht. Passt.
-            // Wenn t=0 ist, haben wir Schritt A gemacht (Init-Check), loop läuft nicht. Passt.
-            // Wenn t=5 ist, haben wir Schritt A (1) + Loop (4) = 5 Runden. Passt.
-
+            // SCHRITT B: Evolutions-Schleife (t-1 mal)
+            // Hier wechselt sich sequenzielle Logik (Main) und parallele Arbeit (Threads) ab.
             for (int round = 1; round < t; round++) {
-                // Rekrutierung basierend auf den Ergebnissen der VORHERIGEN Runde
-                List<BeeBlock> newBlocks = BeeLogic.recruit(results, n, m, e, p, q, b);
-                BlockManager.addBlocks(newBlocks); // Weckt Worker auf
 
-                // Warten bis Runde fertig
+                // --- Phase 1: Sequenzielle Rekrutierung ---
+                // "Da die Rekrutierungsphase sequentiell abgearbeitet wird..." [cite: 22]
+                // Wir erstellen neue Blöcke basierend auf den alten Ergebnissen.
+                // Da alle Worker an der Barriere (in getNextBlock -> wait) schlafen,
+                // ist dieser Zugriff exklusiv und sicher.
+                List<BeeBlock> newBlocks = BeeLogic.recruit(results, n, m, e, p, q, b);
+
+                // --- Phase 2: Arbeit verteilen (Producer) ---
+                // Fügt Blöcke hinzu und ruft intern notifyAll() auf, um die Worker zu wecken.
+                BlockManager.addBlocks(newBlocks);
+
+                // --- Phase 3: Parallele Verarbeitung (Barriere) ---
+                // Der Main-Thread legt sich schlafen, bis die Queue leer UND alle Blöcke fertig sind.
                 BlockManager.waitForRoundCompletion();
 
-                // Neue Ergebnisse holen
+                // --- Phase 4: Auswertung ---
                 results = BlockManager.getFinishedBlocks();
 
-                // Bestwert aktualisieren
                 for (BeeBlock blk : results) {
                     if (blk.bestFitness > bestGlobalFitness) {
                         bestGlobalFitness = blk.bestFitness;
@@ -108,15 +137,20 @@ public class Worker {
                 }
             }
 
-            // 4. Threads sauber beenden
+            // =============================================================
+            // 4. Shutdown & Reporting (Output Phase)
+            // =============================================================
+
+            // Graceful Shutdown: Threads signalisieren, dass sie terminieren sollen.
             BlockManager.stopThreads();
             if (threads != null) {
                 for (BeeThread th : threads) {
-                    th.join();
+                    th.join(); // Warten, bis alle Threads wirklich tot sind.
                 }
             }
 
-            // 5. Ergebnis ausgeben
+            // IPC Output: Ergebnis zurück an den Master-Prozess (ExecuteBA) senden.
+            // Format: Fitness;Position
             System.out.println(bestGlobalFitness + ";" + bestGlobalPos);
 
         } catch (Exception ex) {
