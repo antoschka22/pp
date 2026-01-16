@@ -4,23 +4,20 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Repräsentiert einen eigenständigen Worker-Prozess (JVM).
- * <p>
- * PARADIGMA-KONTEXT:
+ * Repräsentiert einen eigenständigen Worker-Prozess (JVM)
  * Im SPMD-Modell (Single Program, Multiple Data) ist dies der Knoten, der einen
- * Teilbereich des Suchraums bearbeitet.
- * <p>
+ * Teilbereich des Suchraums bearbeitet
  * Diese Klasse fungiert als **lokaler Koordinator**:
- * 1. IPC-Schnittstelle: Empfängt Konfiguration vom Master-Prozess (`ExecuteBA`) via Stdin.
- * 2. Thread-Management: Startet und verwaltet den Pool an `BeeThread`s.
+ * 1. IPC-Schnittstelle: Empfängt Konfiguration vom Master-Prozess (`ExecuteBA`) via Stdin
+ * 2. Thread-Management: Startet und verwaltet den Pool an `BeeThread`s
  * 3. Phasen-Steuerung: Synchronisiert den Wechsel zwischen paralleler Suche (Threads)
- * und sequenzieller Rekrutierung (Main-Thread) mittels einer Barriere.
+ * und sequenzieller Rekrutierung (Main-Thread) mittels einer Barriere
  */
 public class Worker {
 
-    // Globale Parameter (Shared Memory innerhalb dieses Prozesses).
+    // Globale Parameter (Shared Memory innerhalb dieses Prozesses)
     // public static erlaubt den effizienten Zugriff durch BeeLogic/BeeThread ohne
-    // ständiges Herumreichen von Objekten.
+    // ständiges Herumreichen von Objekten
     public static double wStart, wEnd;
     public static int b, k, t, n, m, e, p, q;
     public static int functionId;
@@ -33,10 +30,8 @@ public class Worker {
         BeeThread[] threads = null;
 
         try {
-            // =============================================================
             // 1. IPC (Input Phase): Parameter lesen
-            // =============================================================
-            // Wir lesen die Konfiguration, die ExecuteBA in unsere Pipe (System.in) schreibt.
+            // Wir lesen die Konfiguration, die ExecuteBA in unsere Pipe (System.in) schreibt
             BufferedReader bR = new BufferedReader(new InputStreamReader(System.in));
             String lineOfParams = bR.readLine();
             if (lineOfParams == null) return;
@@ -60,12 +55,10 @@ public class Worker {
                 return;
             }
 
-            // =============================================================
             // 2. Initialisierung (Bootstrap Phase)
-            // =============================================================
 
-            // Erzeugen der initialen Scouts (Gleichverteilung im Suchraum).
-            // Dies ist der erste "Job", den die Worker erledigen müssen.
+            // Erzeugen der initialen Scouts (Gleichverteilung im Suchraum)
+            // Dies ist der erste "Job", den die Worker erledigen müssen
             List<BeeBlock> initialBlocks = new ArrayList<>();
             int numScoutBlocks = Math.max(1, n / b);
             double step = (wEnd - wStart) / numScoutBlocks;
@@ -80,20 +73,18 @@ public class Worker {
             // Füllen des Monitors (Producer-Schritt)
             BlockManager.addBlocks(initialBlocks);
 
-            // Starten des Thread-Pools.
-            // Die Threads laufen sofort los und bedienen sich an der Queue (Pull-Prinzip).
+            // Starten des Thread-Pools
+            // Die Threads laufen sofort los und bedienen sich an der Queue (Pull-Prinzip)
             threads = new BeeThread[k];
             for (int i = 0; i < k; i++) {
                 threads[i] = new BeeThread(i);
                 threads[i].start();
             }
 
-            // =============================================================
             // 3. Hauptschleife (Phasen-Synchronisation)
-            // =============================================================
 
-            // SCHRITT A: Warten auf Abschluss der Initial-Runde (Barriere).
-            // Der Main-Thread blockiert hier, solange die Worker-Threads rechnen.
+            // SCHRITT A: Warten auf Abschluss der Initial-Runde (Barriere)
+            // Der Main-Thread blockiert hier, solange die Worker-Threads rechnen
             BlockManager.waitForRoundCompletion();
 
             // Ergebnisse einsammeln (Thread-Safe Zugriff via Monitor)
@@ -108,22 +99,22 @@ public class Worker {
             }
 
             // SCHRITT B: Evolutions-Schleife (t-1 mal)
-            // Hier wechselt sich sequenzielle Logik (Main) und parallele Arbeit (Threads) ab.
+            // Hier wechselt sich sequenzielle Logik (Main) und parallele Arbeit (Threads) ab
             for (int round = 1; round < t; round++) {
 
                 // --- Phase 1: Sequenzielle Rekrutierung ---
-                // "Da die Rekrutierungsphase sequentiell abgearbeitet wird..." [cite: 22]
-                // Wir erstellen neue Blöcke basierend auf den alten Ergebnissen.
+                // "Da die Rekrutierungsphase sequentiell abgearbeitet wird..."
+                // Wir erstellen neue Blöcke basierend auf den alten Ergebnissen
                 // Da alle Worker an der Barriere (in getNextBlock -> wait) schlafen,
-                // ist dieser Zugriff exklusiv und sicher.
+                // ist dieser Zugriff exklusiv und sicher
                 List<BeeBlock> newBlocks = BeeLogic.recruit(results, n, m, e, p, q, b);
 
                 // --- Phase 2: Arbeit verteilen (Producer) ---
-                // Fügt Blöcke hinzu und ruft intern notifyAll() auf, um die Worker zu wecken.
+                // Fügt Blöcke hinzu und ruft intern notifyAll() auf, um die Worker zu wecken
                 BlockManager.addBlocks(newBlocks);
 
                 // --- Phase 3: Parallele Verarbeitung (Barriere) ---
-                // Der Main-Thread legt sich schlafen, bis die Queue leer UND alle Blöcke fertig sind.
+                // Der Main-Thread legt sich schlafen, bis die Queue leer UND alle Blöcke fertig sind
                 BlockManager.waitForRoundCompletion();
 
                 // --- Phase 4: Auswertung ---
@@ -137,19 +128,17 @@ public class Worker {
                 }
             }
 
-            // =============================================================
             // 4. Shutdown & Reporting (Output Phase)
-            // =============================================================
 
-            // Graceful Shutdown: Threads signalisieren, dass sie terminieren sollen.
+            // Graceful Shutdown: Threads signalisieren, dass sie terminieren sollen
             BlockManager.stopThreads();
             if (threads != null) {
                 for (BeeThread th : threads) {
-                    th.join(); // Warten, bis alle Threads wirklich tot sind.
+                    th.join(); // Warten, bis alle Threads wirklich tot sind
                 }
             }
 
-            // IPC Output: Ergebnis zurück an den Master-Prozess (ExecuteBA) senden.
+            // IPC Output: Ergebnis zurück an den Master-Prozess (ExecuteBA) senden
             // Format: Fitness;Position
             System.out.println(bestGlobalFitness + ";" + bestGlobalPos);
 

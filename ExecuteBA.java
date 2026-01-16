@@ -6,22 +6,21 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Steuerungsklasse für die grobgranulare Parallelisierung auf Prozessebene.
- * <p>
+ * Steuerungsklasse für die grobgranulare Parallelisierung auf Prozessebene
  * Diese Klasse ist verantwortlich für:
- * 1. Das Aufteilen des gesamten Suchraums auf mehrere unabhängige JVM-Prozesse (SPMD-Ansatz).
- * 2. Den Start der Worker-Prozesse mittels ProcessBuilder.
- * 3. Die Interprozesskommunikation (IPC) über Standard-Input/Output Streams (Pipelines).
- * 4. Die Aggregation der Teilergebnisse am Ende der Berechnung.
+ * 1. Das Aufteilen des gesamten Suchraums auf mehrere unabhängige JVM-Prozesse (SPMD-Ansatz)
+ * 2. Den Start der Worker-Prozesse mittels ProcessBuilder
+ * 3. Die Interprozesskommunikation (IPC) über Standard-Input/Output Streams (Pipelines)
+ * 4. Die Aggregation der Teilergebnisse am Ende der Berechnung
  */
 public class ExecuteBA {
 
     /**
-     * Startet die parallele Berechnung durch Erzeugen mehrerer Worker-Prozesse.
+     * Startet die parallele Berechnung durch Erzeugen mehrerer Worker-Prozesse
      *
-     * @param w           Array der Wertebereiche (ein Bereich pro Prozess).
-     * @param b,k,t,...   Parameter für den Bienenalgorithmus.
-     * @param functionId  ID der zu optimierenden Funktion.
+     * @param w           Array der Wertebereiche (ein Bereich pro Prozess)
+     * @param b,k,t,...   Parameter für den Bienenalgorithmus
+     * @param functionId  ID der zu optimierenden Funktion
      */
     public static void executeBA(double[][] w, int b, int k, int t,
                                  int n, int m, int e, int p, int q,
@@ -43,8 +42,8 @@ public class ExecuteBA {
             Process proc = pB.start();
             processes[i] = proc;
 
-            // IPC: Schreiben der Konfigurationsparameter in den Standard-Input (System.in) des Kindprozesses.
-            // Die Kommunikation erfolgt textbasiert (CSV-Format), da keine Shared-Memory zwischen Prozessen existiert.
+            // IPC: Schreiben der Konfigurationsparameter in den Standard-Input (System.in) des Kindprozesses
+            // Die Kommunikation erfolgt textbasiert (CSV-Format), da keine Shared-Memory zwischen Prozessen existiert
             PrintWriter out = new PrintWriter(new OutputStreamWriter(proc.getOutputStream()), true);
             out.println(w[i][0] + ";" + w[i][1] + ";" + b + ";" + k + ";" + t +
                     ";" + n + ";" + m + ";" + e + ";" + p + ";" + q + ";" + functionId);
@@ -58,8 +57,8 @@ public class ExecuteBA {
 
         // --- Phase 2: Ergebnis-Aggregation und Synchronisation (IPC-Read) ---
         for (int i = 0; i < numOfProcesses; i++) {
-            // Blockierendes Lesen: Wir warten hier, bis der jeweilige Prozess fertig ist und sein Ergebnis sendet.
-            // Dies wirkt als implizite Barriere für das Ende der Gesamtberechnung.
+            // Blockierendes Lesen: Wir warten hier, bis der jeweilige Prozess fertig ist und sein Ergebnis sendet
+            // Dies wirkt als implizite Barriere für das Ende der Gesamtberechnung
             String s = readers[i].readLine();
 
             if (s != null) {
