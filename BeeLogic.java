@@ -62,10 +62,16 @@ public class BeeLogic {
      * und komplexe Sortierlogik anwenden, ohne Race-Conditions zu fürchten
      *
      * @param oldBlocks Ergebnisse der vorherigen Runde
-     * @param n,m,e,p,q,b Parameter des Algorithmus
+     * @param n Gesamtanzahl Kundschafter
+     * @param m Anzahl der besten Felder
+     * @param e Anzahl der exzellenten Felder
+     * @param p Rekrutierte Bienen für exzellente Felder (intensiv)
+     * @param q Rekrutierte Bienen für ausgewählte Felder (weniger intensiv)
+     * @param s Größe des Feldes relativ zum Suchraum (z.B. 0.05 für 5%)
+     * @param b Blockgröße
      * @return Eine Liste neuer Blöcke für die Work-Queue
      */
-    public static List<BeeBlock> recruit(List<BeeBlock> oldBlocks, int n, int m, int e, int p, int q, int b) {
+    public static List<BeeBlock> recruit(List<BeeBlock> oldBlocks, int n, int m, int e, int p, int q, double s, int b) {
         List<BeeBlock> newBlocks = new ArrayList<>();
 
         // Sortieren der Ergebnisse nach Fitness (Globales Wissen nutzen)
@@ -73,11 +79,12 @@ public class BeeLogic {
         List<BeeBlock> sortedBlocks = new ArrayList<>(oldBlocks);
         sortedBlocks.sort((b1, b2) -> Double.compare(b2.bestFitness, b1.bestFitness));
 
+        // Variable Nachbarschaftsgröße basierend auf Parameter s
+        double neighborhood = (Worker.wEnd - Worker.wStart) * s;
+
         // Elite-Stellen (Die besten e Orte)
-        // Hier wird intensiv gesucht: Viele Bienen (q) auf engem Raum
-        // Division durch b (q/b) stellt sicher, dass wir saubere Blöcke erzeugen
-        int blocksPerElite = Math.max(1, q / b);
-        double neighborhood = (Worker.wEnd - Worker.wStart) * 0.05; // 5% lokale Nachbarschaft
+        // Division durch b (p/b) stellt sicher, dass wir saubere Blöcke erzeugen
+        int blocksPerElite = Math.max(1, p / b);
 
         for (int i = 0; i < e && i < sortedBlocks.size(); i++) {
             BeeBlock elite = sortedBlocks.get(i);
@@ -85,21 +92,20 @@ public class BeeLogic {
         }
 
         // Ausgewählte Stellen (Die besten m-e Orte)
-        // Hier wird moderat gesucht: Weniger Bienen (p) auf engem Raum
-        int blocksPerSelected = Math.max(1, p / b);
+        int blocksPerSelected = Math.max(1, q / b);
         for (int i = e; i < m && i < sortedBlocks.size(); i++) {
             BeeBlock selected = sortedBlocks.get(i);
             createLocalSearchBlocks(newBlocks, selected, blocksPerSelected, b, neighborhood);
         }
 
         // Scouts (Globale Suche)
-        // Der Rest der Bienenpopulation (n - bereits vergebene) wird zufällig verteilt,
-        // um lokale Optima zu verlassen
-        int currentBees = newBlocks.stream().mapToInt(blk -> blk.numBees).sum();
-        int beesMissing = n - currentBees;
+        // Feste Anzahl Scouts basierend auf n - m (restliche Kundschafter)
+        // Unabhängig davon, wie viele Bienen wir oben bereits rekrutiert haben.
+        // Das garantiert, dass die globale Suche (Exploration) nie ganz ausfällt.
+        int numScouts = n - m;
 
-        if (beesMissing > 0) {
-            int scoutBlocksNeeded = Math.max(1, beesMissing / b);
+        if (numScouts > 0) {
+            int scoutBlocksNeeded = Math.max(1, numScouts / b);
             double globalRange = (Worker.wEnd - Worker.wStart) / scoutBlocksNeeded;
 
             for (int i = 0; i < scoutBlocksNeeded; i++) {

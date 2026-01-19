@@ -20,10 +20,12 @@ public class ExecuteBA {
      *
      * @param w           Array der Wertebereiche (ein Bereich pro Prozess)
      * @param b,k,t,...   Parameter für den Bienenalgorithmus
+     * @param s           Größe des Feldes für lokale Suche (relativ zum Suchraum)
      * @param functionId  ID der zu optimierenden Funktion
      */
     public static void executeBA(double[][] w, int b, int k, int t,
                                  int n, int m, int e, int p, int q,
+                                 double s,
                                  int functionId) throws Exception {
 
         int numOfProcesses = w.length;
@@ -33,7 +35,7 @@ public class ExecuteBA {
         // Ermittelt den Classpath der aktuellen JVM, um Worker korrekt zu starten
         String classpath = System.getProperty("java.class.path");
 
-        System.out.println("ExecuteBA: Starte " + numOfProcesses + " Worker-Prozesse (FuncID: " + functionId + ")...");
+        System.out.println("ExecuteBA: Starte " + numOfProcesses + " Worker-Prozesse (FuncID: " + functionId + ", s: " + s + ")...");
 
         // 1: Prozess-Erzeugung und Initialisierung (IPC-Write) ---
         for (int i = 0; i < numOfProcesses; i++) {
@@ -45,8 +47,9 @@ public class ExecuteBA {
             // IPC: Schreiben der Konfigurationsparameter in den Standard-Input (System.in) des Kindprozesses
             // Die Kommunikation erfolgt textbasiert (CSV-Format), da keine Shared-Memory zwischen Prozessen existiert
             PrintWriter out = new PrintWriter(new OutputStreamWriter(proc.getOutputStream()), true);
+
             out.println(w[i][0] + ";" + w[i][1] + ";" + b + ";" + k + ";" + t +
-                    ";" + n + ";" + m + ";" + e + ";" + p + ";" + q + ";" + functionId);
+                    ";" + n + ";" + m + ";" + e + ";" + p + ";" + q + ";" + functionId + ";" + s);
 
             // Vorbereiten des Lesens vom Standard-Output des Kindprozesses
             readers[i] = new BufferedReader(new InputStreamReader(proc.getInputStream()));
@@ -59,10 +62,10 @@ public class ExecuteBA {
         for (int i = 0; i < numOfProcesses; i++) {
             // Blockierendes Lesen: Wir warten hier, bis der jeweilige Prozess fertig ist und sein Ergebnis sendet
             // Dies wirkt als implizite Barriere für das Ende der Gesamtberechnung
-            String s = readers[i].readLine();
+            String s_result = readers[i].readLine();
 
-            if (s != null) {
-                resultsBA.add(s);
+            if (s_result != null) {
+                resultsBA.add(s_result);
             } else {
                 // Fehlerbehandlung: Auslesen des ErrorStreams bei Prozessabsturz
                 BufferedReader errReader = new BufferedReader(new InputStreamReader(processes[i].getErrorStream()));

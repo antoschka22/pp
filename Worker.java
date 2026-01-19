@@ -18,6 +18,8 @@ public class Worker {
     // ständiges Herumreichen von Objekten
     public static double wStart, wEnd;
     public static int b, k, t, n, m, e, p, q;
+    public static double s;
+
     public static int functionId;
 
     public static void main(String[] args) {
@@ -48,6 +50,8 @@ public class Worker {
                 p = Integer.parseInt(params[8]);
                 q = Integer.parseInt(params[9]);
                 functionId = Integer.parseInt(params[10]);
+                s = Double.parseDouble(params[11]);
+
             } catch (Exception parseEx) {
                 System.err.println("Worker Parameter Error: " + parseEx.getClass().getSimpleName() + " - " + parseEx.getMessage());
                 return;
@@ -61,10 +65,10 @@ public class Worker {
             double step = (wEnd - wStart) / numScoutBlocks;
 
             for (int i = 0; i < numScoutBlocks; i++) {
-                double s = wStart + i * step;
-                double end = s + step;
+                double start = wStart + i * step;
+                double end = start + step;
                 if (end > wEnd) end = wEnd; // Korrektur für Fließkomma-Ungenauigkeiten
-                initialBlocks.add(new BeeBlock(s, end, b));
+                initialBlocks.add(new BeeBlock(start, end, b));
             }
 
             // Füllen des Monitors (Producer-Schritt)
@@ -104,7 +108,7 @@ public class Worker {
                 // Wir erstellen neue Blöcke basierend auf den alten Ergebnissen
                 // Da alle Worker an der Barriere (in getNextBlock -> wait) schlafen,
                 // ist dieser Zugriff exklusiv und sicher
-                List<BeeBlock> newBlocks = BeeLogic.recruit(results, n, m, e, p, q, b);
+                List<BeeBlock> newBlocks = BeeLogic.recruit(results, n, m, e, p, q, s, b);
 
                 // 2: Arbeit verteilen (Producer) ---
                 // Fügt Blöcke hinzu und ruft intern notifyAll() auf, um die Worker zu wecken
