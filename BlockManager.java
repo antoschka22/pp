@@ -38,7 +38,7 @@ public class BlockManager {
         processedBlocksInRound = 0; // Reset für die neue Runde
         finishedBlocks.clear();     // Alte Ergebnisse verwerfen
 
-        // WICHTIG: notifyAll() weckt alle BeeThreads auf, die in getNextBlock()
+        // notifyAll() weckt alle BeeThreads auf, die in getNextBlock()
         // im wait()-Zustand schlafen, da die Queue leer war
         BlockManager.class.notifyAll();
     }
@@ -47,7 +47,8 @@ public class BlockManager {
      * Konsumenten-Methode: Threads holen sich hier Arbeit (Pull-Prinzip)
      * Implementiert das "Guarded Block" Muster:
      * Solange keine Arbeit da ist, wird gewartet (wait), um CPU-Zyklen zu sparen (kein Busy-Waiting)
-     * * @return Der nächste zu bearbeitende Block oder null, wenn der Thread enden soll
+     *
+     * @return Der nächste zu bearbeitende Block oder null, wenn der Thread enden soll
      */
     public static synchronized BeeBlock getNextBlock() {
         // While-Schleife ist zwingend nötig wegen "Spurious Wakeups"

@@ -6,17 +6,17 @@ außerdem haben wir uns gegenseitig Verbesserungsvorschläge gegeben.
 Im Verlauf der Übung ist es zu KEINEN Ausfällen im Team gekommen.
 
 Arbeitsaufteilung Aufgabe 8:
-Miriam Reumann
-Simon Oberdörfer
-Antonio Molina Gradischnig
+Miriam Reumann: Ich war für die Klassen Worker und ExecuteBA.java zuständig
+Simon Oberdörfer: Ich war für die Klassen Test(Testfälle 1-9), BeeBlock.java und BeeLogic.java zuständig
+Antonio Molina Gradischnig: Ich war für die Klassen Test(Dateiaufbau und Testfälle 10-32), BeeThread.java und BlockManager.java zuständig
  */
 
 /**
- * Master-Testsuite zur Überprüfung der parallelen Implementierung
+ * Testklasse zur Überprüfung der parallelen Implementierung
  *
- * Diese Klasse fungiert als externer Treiber ("Driver"), der das Gesamtsystem als Blackbox testet
+ * Diese Klasse fungiert als externer Treiber, der das Gesamtsystem als Blackbox testet
  * Sie validiert, ob die grobgranulare Parallelisierung (Prozesse via ExecuteBA) und die
- * feingranulare Parallelisierung (Threads im Worker) korrekt zusammenspielen.
+ * feingranulare Parallelisierung (Threads im Worker) korrekt zusammenspielen
  *
  * Die Tests sind so gewählt, dass sie spezifische Aspekte der Nebenläufigkeit isolieren:
  * - Skalierung über Prozesse (Distributed Memory Ansatz)
@@ -255,7 +255,7 @@ public class Test {
         }
 
         long duration = System.currentTimeMillis() - startTime;
-        System.out.println("\n>>> Gesamte Testsuite (20 Fälle) beendet in " + duration + " ms <<<");
+        System.out.println("\n>>> Gesamte Testsuite beendet in " + duration + " ms <<<");
 
         // Zeitlimit-Check gemäß Angabe (max 20s für alle Tests)
         if (duration > 20000) {

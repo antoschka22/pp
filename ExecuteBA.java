@@ -8,7 +8,7 @@ import java.util.List;
 /**
  * Steuerungsklasse für die grobgranulare Parallelisierung auf Prozessebene
  * Diese Klasse ist verantwortlich für:
- * 1. Das Aufteilen des gesamten Suchraums auf mehrere unabhängige JVM-Prozesse (SPMD-Ansatz)
+ * 1. Das Aufteilen des gesamten Suchraums auf mehrere unabhängige JVM-Prozesse
  * 2. Den Start der Worker-Prozesse mittels ProcessBuilder
  * 3. Die Interprozesskommunikation (IPC) über Standard-Input/Output Streams (Pipelines)
  * 4. Die Aggregation der Teilergebnisse am Ende der Berechnung
@@ -35,7 +35,7 @@ public class ExecuteBA {
 
         System.out.println("ExecuteBA: Starte " + numOfProcesses + " Worker-Prozesse (FuncID: " + functionId + ")...");
 
-        // --- Phase 1: Prozess-Erzeugung und Initialisierung (IPC-Write) ---
+        // 1: Prozess-Erzeugung und Initialisierung (IPC-Write) ---
         for (int i = 0; i < numOfProcesses; i++) {
             // Startet eine neue JVM für jeden Teilbereich (Prozess-Parallelität)
             ProcessBuilder pB = new ProcessBuilder("java", "-cp", classpath, "Worker");
@@ -55,7 +55,7 @@ public class ExecuteBA {
         System.out.println("ExecuteBA: Warte auf Ergebnisse...");
         List<String> resultsBA = new ArrayList<>();
 
-        // --- Phase 2: Ergebnis-Aggregation und Synchronisation (IPC-Read) ---
+        // 2: Ergebnis-Aggregation und Synchronisation (IPC-Read) ---
         for (int i = 0; i < numOfProcesses; i++) {
             // Blockierendes Lesen: Wir warten hier, bis der jeweilige Prozess fertig ist und sein Ergebnis sendet
             // Dies wirkt als implizite Barriere für das Ende der Gesamtberechnung

@@ -22,7 +22,7 @@ public class BeeBlock {
     // Initialisierung mit -Double.MAX_VALUE, damit jeder gefundene Wert besser ist
     double bestFitness = -Double.MAX_VALUE;
 
-    // WICHTIG: Wir müssen uns merken, WO das beste Ergebnis war,
+    // Wir müssen uns merken, wo das beste Ergebnis war,
     // damit wir diesen Ort in der Rekrutierungsphase als Zentrum für neue lokale Suchen nutzen können
     double bestPosition = 0.0;
 
